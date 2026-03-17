@@ -9,18 +9,25 @@ class NewsApi {
   static final NewsApi _instance = NewsApi._();
   static NewsApi get instance => _instance;
 
-  /// 获取新闻列表
-  Future<List<News>> getNewsList() async {
+  /// 分页获取资讯列表
+  ///
+  /// [skip] 跳过的记录数
+  /// [limit] 每页获取条数
+  Future<List<News>> getNews({int skip = 0, int limit = 10}) async {
     try {
       final response = await DioClient.instance.get<List<dynamic>>(
-        '/news/list',
+        '/news/',
+        queryParameters: {
+          'skip': skip,
+          'limit': limit,
+        },
       );
       return response.map((json) => News.fromJson(json)).toList();
     } on ApiException catch (e) {
-      debugPrint('获取新闻列表失败: ${e.message}');
+      debugPrint('获取资讯列表失败: ${e.message}');
       rethrow;
     } catch (e) {
-      debugPrint('获取新闻列表发生未知错误: $e');
+      debugPrint('获取资讯列表时发生未知错误: $e');
       rethrow;
     }
   }

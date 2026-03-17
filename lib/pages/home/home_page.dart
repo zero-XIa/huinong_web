@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_staggered_grid_view/flutter_staggered_grid_view.dart';
 import 'package:provider/provider.dart';
 import 'package:huinong_web/api/news_api.dart';
 import 'package:huinong_web/models/news_model.dart';
@@ -12,12 +13,54 @@ class HomePage extends StatefulWidget {
 }
 
 class _HomePageState extends State<HomePage> {
-  late Future<List<News>> _newsListFuture;
+  final ScrollController _scrollController = ScrollController();
+  final List<News> _newsList = [];
+  bool _isLoading = false;
+  bool _hasMore = true;
+  int _page = 0;
 
   @override
   void initState() {
     super.initState();
-    _newsListFuture = NewsApi.instance.getNewsList();
+    _loadMoreNews();
+    _scrollController.addListener(() {
+      if (_scrollController.position.pixels == _scrollController.position.maxScrollExtent && !_isLoading) {
+        _loadMoreNews();
+      }
+    });
+  }
+
+  Future<void> _loadMoreNews() async {
+    if (_isLoading || !_hasMore) return;
+    setState(() {
+      _isLoading = true;
+    });
+
+    try {
+      final newNews = await NewsApi.instance.getNews(skip: _page * 10, limit: 10);
+      if (newNews.isEmpty) {
+        setState(() {
+          _hasMore = false;
+        });
+      } else {
+        setState(() {
+          _newsList.addAll(newNews);
+          _page++;
+        });
+      }
+    } catch (e) {
+      // Handle error
+    } finally {
+      setState(() {
+        _isLoading = false;
+      });
+    }
+  }
+
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
   }
 
   @override
@@ -25,92 +68,89 @@ class _HomePageState extends State<HomePage> {
     final appProvider = Provider.of<AppProvider>(context);
     final isElderMode = appProvider.isElderlyMode;
 
-    // 适老化样式配置
-    final double baseFontSize = isElderMode ? 18.0 : 14.0;
-    final double titleFontSize = isElderMode ? 22.0 : 16.0;
-    final double padding = isElderMode ? 20.0 : 8.0;
-    const Color elderTextColor = Color(0xFF333333);
-    const Color elderBackgroundColor = Color(0xFFF5F5DC);
-
     return Scaffold(
-      backgroundColor: isElderMode ? elderBackgroundColor : null,
       appBar: AppBar(
-        title: Text(
-          '智慧农业',
-          style: TextStyle(
-            fontSize: isElderMode ? titleFontSize : null,
-            color: isElderMode ? elderTextColor : null,
-          ),
-        ),
+        title: const Text('资讯'),
         actions: [
           Switch(
             value: isElderMode,
             onChanged: (value) {
               appProvider.toggleElderlyMode();
             },
-            activeTrackColor: Theme.of(context).primaryColor,
-            inactiveThumbColor: Colors.white,
-            inactiveTrackColor: Colors.grey,
           ),
         ],
       ),
-      body: FutureBuilder<List<News>>(
-        future: _newsListFuture,
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
+      body: MasonryGridView.count(
+        controller: _scrollController,
+        crossAxisCount: 2,
+        mainAxisSpacing: 4,
+        crossAxisSpacing: 4,
+        itemCount: _newsList.length + (_hasMore ? 1 : 0),
+        itemBuilder: (context, index) {
+          if (index == _newsList.length) {
             return const Center(child: CircularProgressIndicator());
-          } else if (snapshot.hasError) {
-            return Center(child: Text('加载失败: ${snapshot.error}'));
-          } else if (!snapshot.hasData || snapshot.data!.isEmpty) {
-            return const Center(child: Text('暂无新闻数据'));
-          } else {
-            return ListView.builder(
-              padding: EdgeInsets.all(padding),
-              itemCount: snapshot.data!.length,
-              itemBuilder: (context, index) {
-                final news = snapshot.data![index];
-                return Card(
-                  elevation: isElderMode ? 4.0 : null,
-                  margin: EdgeInsets.only(bottom: padding),
-                  child: Padding(
-                    padding: EdgeInsets.all(padding),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          news.title,
-                          style: TextStyle(
-                            fontSize: isElderMode ? titleFontSize : null,
-                            fontWeight: FontWeight.bold,
-                            color: isElderMode ? elderTextColor : null,
-                          ),
-                        ),
-                        SizedBox(height: padding / 2),
-                        Text(
-                          news.content,
-                          style: TextStyle(
-                            fontSize: isElderMode ? baseFontSize : null,
-                            color: isElderMode ? elderTextColor : null,
-                          ),
-                          maxLines: 3,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                        SizedBox(height: padding / 2),
-                        Text(
-                          news.formattedPublishTime,
-                          style: TextStyle(
-                            fontSize: isElderMode ? baseFontSize * 0.9 : null,
-                            color: isElderMode ? elderTextColor.withAlpha(179) : Colors.grey, // 0.7 opacity ≈ 179 alpha
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                );
-              },
-            );
           }
+          final news = _newsList[index];
+          return _buildNewsCard(news, isElderMode);
         },
+      ),
+    );
+  }
+
+  Widget _buildNewsCard(News news, bool isElderMode) {
+    return Card(
+      clipBehavior: Clip.antiAlias,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          if (news.coverUrl != null && news.coverUrl!.isNotEmpty)
+            Image.network(
+              news.coverUrl!,
+              fit: BoxFit.cover,
+              width: double.infinity,
+              height: 120, // Adjust height as needed
+            ),
+          Padding(
+            padding: const EdgeInsets.all(8.0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    const CircleAvatar(
+                      radius: 12,
+                      child: Icon(Icons.admin_panel_settings, size: 16),
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      '管理员',
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: isElderMode ? 16 : 12,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  news.title,
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: isElderMode ? 20 : 16,
+                  ),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                const SizedBox(height: 8),
+                if (news.category != null)
+                  Chip(
+                    label: Text(news.category!),
+                    padding: EdgeInsets.zero,
+                  ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }

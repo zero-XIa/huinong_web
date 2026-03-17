@@ -1,7 +1,7 @@
 
-import 'package:huinong_web/models/user_model.dart';
 import 'package:flutter/foundation.dart'; // For debugPrint
-import 'package:shared_preferences/shared_preferences.dart';
+import 'package:huinong_web/api/dio_client.dart';
+import 'package:huinong_web/models/user_model.dart';
 
 /// 用户 API 服务
 class UserApi {
@@ -9,28 +9,49 @@ class UserApi {
   static final UserApi _instance = UserApi._();
   static UserApi get instance => _instance;
 
-  /// 模拟获取当前登录用户信息
-  Future<User?> getCurrentUser() async {
-    debugPrint('模拟获取当前用户');
-    await Future.delayed(const Duration(seconds: 1)); // 模拟网络延迟
-    return User(
-      id: 1,
-      username: '测试用户',
-      password: '******',
-      phone: '13800138000',
-      elderMode: false,
-      createTime: DateTime.now().subtract(const Duration(days: 30)),
-    );
+  /// 用户登录
+  Future<User> login(String username, String password) async {
+    try {
+      final response = await DioClient.instance.post<Map<String, dynamic>>(
+        '/users/login',
+        data: {
+          'username': username,
+          'password': password,
+        },
+      );
+      return User.fromJson(response);
+    } on ApiException catch (e) {
+      debugPrint('登录失败: ${e.message}');
+      rethrow;
+    } catch (e) {
+      debugPrint('登录时发生未知错误: $e');
+      rethrow;
+    }
   }
 
-  /// 模拟用户退出登录
-  Future<void> logout() async {
-    debugPrint('模拟用户退出登录');
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.remove('user_token');
-    await prefs.remove('user_id');
-    await Future.delayed(const Duration(milliseconds: 500)); // 模拟异步操作
-  }
+  /// 用户注册
+  Future<User> register(String username, String password, {String? phone}) async {
+    try {
+      final data = {
+        'username': username,
+        'password': password,
+      };
+      if (phone != null && phone.isNotEmpty) {
+        data['phone'] = phone;
+      }
 
-  // TODO: 可以根据后端接口继续添加更新用户信息、修改密码等方法
+      final response = await DioClient.instance.post<Map<String, dynamic>>(
+        '/users/register',
+        data: data,
+      );
+
+      return User.fromJson(response);
+    } on ApiException catch (e) {
+      debugPrint('注册失败: ${e.message}');
+      rethrow;
+    } catch (e) {
+      debugPrint('注册时发生未知错误: $e');
+      rethrow;
+    }
+  }
 }

@@ -32,12 +32,7 @@
 - 图片上传：接口接收 multipart/form-data 格式，文件字段名固定为 "file"
 
 ## 2. 核心接口映射
-| 前端功能       | 后端接口                | 请求方式 | 关键参数                | 响应核心字段               |
-|----------------|-------------------------|----------|-------------------------|----------------------------|
-| 用户登录       | /users/login            | POST     | username, password      | id, username, status       |
-| 图片上传识别   | /crops/identify         | POST     | user_id, file（图片）   | disease_name, advice, confidence |
-| 首页数据获取   | /news/home              | GET      | -                       | banner_list, news_list     |
-| 我的页面信息   | /users/info/{user_id}   | GET      | user_id（路径参数）     | username, phone, history   |
+查看后端接口文件夹的README.md文件，其中包含了所有核心接口的详细信息。
 
 ## 3. 对接要求
 - 所有接口调用必须基于已封装的 Dio 单例，新增接口需归类到对应 api_service 文件

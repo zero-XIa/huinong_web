@@ -20,7 +20,6 @@ class DioClient {
   DioClient._(); // 私有构造函数
   static final DioClient _instance = DioClient._();
   static DioClient get instance => _instance;
-
   late Dio _dio;
 
   /// 初始化 Dio 客户端
@@ -31,7 +30,7 @@ class DioClient {
       receiveTimeout: const Duration(seconds: 10), // 接收超时
     ));
 
-    // 添加拦截器
+       // 添加拦截器
     _dio.interceptors.add(AppInterceptor());
   }
 
@@ -84,7 +83,7 @@ class DioClient {
   }
 
   /// 统一处理 Dio 异常
-  ApiException _handleDioException(DioException error) {
+    ApiException _handleDioException(DioException error) {
     String message = '未知错误';
     int? statusCode = error.response?.statusCode;
 
@@ -99,7 +98,7 @@ class DioClient {
       case DioExceptionType.badResponse:
         switch (statusCode) {
           case 401:
-            message = '未授权，请重新登录。';
+             message = '未授权，请重新登录。';
             // TODO: 这里可以添加清除本地 token 并跳转到登录页的逻辑
             break;
           case 404:

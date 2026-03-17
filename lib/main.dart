@@ -1,8 +1,9 @@
 
 import 'package:flutter/material.dart';
 import 'package:huinong_web/api/dio_client.dart';
-import 'package:huinong_web/pages/home/home_page.dart';
 import 'package:huinong_web/pages/consult/consult_page.dart';
+import 'package:huinong_web/pages/home/home_page.dart';
+import 'package:huinong_web/pages/login/login_page.dart';
 import 'package:huinong_web/pages/mine/mine_page.dart';
 import 'package:huinong_web/provider/app_provider.dart';
 import 'package:provider/provider.dart';
@@ -10,11 +11,9 @@ import 'package:provider/provider.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   DioClient.instance.init('http://127.0.0.1:8000/api/v1'); // 初始化 Dio
-  final appProvider = AppProvider();
-  await appProvider.loadElderlyMode(); // 加载适老化模式
   runApp(
     ChangeNotifierProvider(
-      create: (context) => appProvider,
+      create: (context) => AppProvider(),
       child: const MyApp(),
     ),
   );
@@ -28,53 +27,57 @@ class MyApp extends StatelessWidget {
     return MaterialApp(
       title: '慧农 App',
       theme: ThemeData(
-        primarySwatch: Colors.green, // 符合 Google 原生简洁风格，以绿色为主色调
+        primarySwatch: Colors.green,
         visualDensity: VisualDensity.adaptivePlatformDensity,
-        // 统一 Card 样式
         cardTheme: CardThemeData(
           elevation: 2.0,
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(8.0), // 统一圆角
+            borderRadius: BorderRadius.circular(8.0),
           ),
-          margin: const EdgeInsets.symmetric(vertical: 8.0), // 统一列表项间距
+          margin: const EdgeInsets.symmetric(vertical: 8.0),
         ),
-        // 统一 ElevatedButton 样式
         elevatedButtonTheme: ElevatedButtonThemeData(
-          style: ButtonStyle( // 直接使用 ButtonStyle
-            backgroundColor: WidgetStateProperty.all(const Color(0xFF2E7D32)), // 主色 #2E7D32
-            foregroundColor: WidgetStateProperty.all(Colors.white), // 文字颜色
+          style: ButtonStyle(
+            backgroundColor: WidgetStateProperty.all(const Color(0xFF2E7D32)),
+            foregroundColor: WidgetStateProperty.all(Colors.white),
             textStyle: WidgetStateProperty.all(const TextStyle(fontSize: 16.0, fontWeight: FontWeight.bold)),
             padding: WidgetStateProperty.all(const EdgeInsets.symmetric(horizontal: 24.0, vertical: 12.0)),
             shape: WidgetStateProperty.all(RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(8.0), // 统一圆角
+              borderRadius: BorderRadius.circular(8.0),
             )),
-            // hover 反馈
             overlayColor: WidgetStateProperty.resolveWith<Color?>(
               (Set<WidgetState> states) {
                 if (states.contains(WidgetState.hovered)) {
-                  return Colors.white.withAlpha(26); // 0.1 opacity ≈ 26 alpha
+                  return Colors.white.withAlpha(26);
                 }
                 return null;
               },
             ),
           ),
         ),
-        // 统一输入框样式
         inputDecorationTheme: InputDecorationTheme(
           border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(8.0), // 统一圆角
-            borderSide: BorderSide.none, // 默认无边框
+            borderRadius: BorderRadius.circular(8.0),
+            borderSide: BorderSide.none,
           ),
           focusedBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(8.0),
-            borderSide: const BorderSide(color: Color(0xFF2E7D32), width: 2.0), // 聚焦时主色边框
+            borderSide: const BorderSide(color: Color(0xFF2E7D32), width: 2.0),
           ),
           contentPadding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
           filled: true,
-          fillColor: Colors.grey[100], // 默认填充色
+          fillColor: Colors.grey[100],
         ),
       ),
-      home: const MainScreen(), // 使用 MainScreen 作为应用的根页面
+      home: Consumer<AppProvider>(
+        builder: (context, appProvider, child) {
+          if (appProvider.currentUser == null) {
+            return const LoginPage();
+          } else {
+            return const MainScreen();
+          }
+        },
+      ),
     );
   }
 }
@@ -88,13 +91,12 @@ class MainScreen extends StatefulWidget {
 }
 
 class _MainScreenState extends State<MainScreen> {
-  int _selectedIndex = 0; // 当前选中的底部导航栏索引
+  int _selectedIndex = 0;
 
-  // 页面列表，稍后会替换为实际的页面
   final List<Widget> _pages = [
-    const HomePage(), // 首页
-    const ConsultPage(), // 问诊页面
-    const MinePage(), // 我的页面
+    const HomePage(),
+    const ConsultPage(),
+    const MinePage(),
   ];
 
   void _onItemTapped(int index) {

@@ -24,9 +24,9 @@ class User {
   /// 对应后端字段: `username` (String, unique, nullable=False)
   final String username;
 
-  /// 密码 (通常不在前端直接传输或显示，此处仅为模型对齐)
+  /// 密码 (登录响应中不包含，设为可空)
   /// 对应后端字段: `password` (String, nullable=False)
-  final String password;
+  final String? password;
 
   /// 手机号码
   /// 对应后端字段: `phone` (String, unique, nullable=True)
@@ -44,7 +44,7 @@ class User {
   User({
     this.id,
     required this.username,
-    required this.password,
+    this.password,
     this.phone,
     this.elderMode = false, // 默认值为 false
     this.createTime,
@@ -55,9 +55,9 @@ class User {
   /// 注意：后端返回的 `create_time` 可能是字符串，需要解析为 DateTime。
   factory User.fromJson(Map<String, dynamic> json) {
     return User(
-      id: json['id'] as int?,
+      id: json['user_id'] ?? json['id'] as int?,
       username: json['username'] as String,
-      password: json['password'] as String,
+      password: json['password'] as String?,
       phone: json['phone'] as String?,
       elderMode: json['elder_mode'] as bool? ?? false, // 后端默认值，前端也给个默认值
       createTime: json['create_time'] != null
