@@ -39,16 +39,20 @@ class _RegisterPageState extends State<RegisterPage> {
     if (value == null || value.isEmpty) {
       return '请输入密码';
     }
-    if (value.length < 8 || value.length > 128) {
-      return '请设置8-128位密码（建议包含字母+数字）';
+    final trimmed = value.trim();
+    if (trimmed.length < 8 || trimmed.length > 20) {
+      return '请设置 8-20 位密码（建议包含字母+数字）';
     }
     return null;
   }
 
     String? _validatePhone(String? value) {
+    if (value == null || value.trim().isEmpty) {
+      return null; // 手机号为空时验证通过（因为是选填）
+    }
     final normalized = _normalizePhone(value);
-    if (normalized.isNotEmpty && !RegExp(r'^1[3-9]\d{9}$').hasMatch(normalized)) {
-      return '请输入有效的11位手机号';
+    if (!RegExp(r'^1[3-9]\d{9}$').hasMatch(normalized)) {
+      return '请输入有效的 11 位手机号';
     }
     return null;
   }
@@ -84,7 +88,7 @@ class _RegisterPageState extends State<RegisterPage> {
                   height: 1.5,
                 ),
                 children: [
-                  const TextSpan(text: '您的账号 '),
+                  const TextSpan(text: '注册成功！您的账号 '),
                   TextSpan(
                     text: user.username,
                     style: TextStyle(
@@ -93,7 +97,7 @@ class _RegisterPageState extends State<RegisterPage> {
                       color: Theme.of(context).primaryColor,
                     ),
                   ),
-                  const TextSpan(text: ' 已创建，即将跳转到登录页'),
+                  const TextSpan(text: ' 已创建，跳转到登录页'),
                 ],
               ),
             ),
@@ -103,7 +107,7 @@ class _RegisterPageState extends State<RegisterPage> {
         Timer(const Duration(seconds: 3), () {
           if (mounted) {
             Navigator.of(context).pushReplacement(
-              MaterialPageRoute(builder: (context) => const LoginPage()),
+              MaterialPageRoute(builder: (context) => LoginPage(username: user.username)),
             );
           }
         });
@@ -153,6 +157,7 @@ class _RegisterPageState extends State<RegisterPage> {
 
     return Scaffold(
       appBar: AppBar(
+        automaticallyImplyLeading: false,  // 隐藏返回箭头
         title: Text('注册', style: TextStyle(fontSize: isElderMode ? 22 : 18)),
         actions: [
           Switch(

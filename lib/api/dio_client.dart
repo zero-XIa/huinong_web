@@ -10,7 +10,7 @@ class ApiException implements Exception {
 
   @override
   String toString() {
-    return 'ApiException: Code \$code, Message: \$message';
+    return 'ApiException: Code $code, Message: $message';
   }
 }
 
@@ -87,7 +87,7 @@ class DioClient {
     String message = '未知错误';
     int? statusCode = error.response?.statusCode;
 
-    debugPrint('Dio 异常: \${error.type}, 状态码: \$statusCode, 错误信息: \${error.message}');
+    debugPrint('Dio 异常: ${error.type}, 状态码: $statusCode, 错误信息: ${error.message}');
 
     switch (error.type) {
       case DioExceptionType.connectionTimeout:
@@ -97,6 +97,19 @@ class DioClient {
         break;
       case DioExceptionType.badResponse:
         switch (statusCode) {
+          case 400:
+            // 尝试从响应体中获取更详细的错误信息
+            final responseData = error.response?.data;
+            String detailMessage = '';
+            if (responseData is Map<String, dynamic>) {
+              detailMessage = responseData['detail'] as String? ?? responseData['message'] as String? ?? '';
+            }
+            if (detailMessage.isNotEmpty) {
+              message = detailMessage;
+            } else {
+              message = '请求参数错误，请检查输入信息。';
+            }
+            break;
           case 401:
              message = '未授权，请重新登录。';
             // TODO: 这里可以添加清除本地 token 并跳转到登录页的逻辑
@@ -108,7 +121,7 @@ class DioClient {
             message = '服务器内部错误。';
             break;
           default:
-            message = '请求失败: \${statusCode ?? ''} \${error.response?.statusMessage ?? ''}';
+            message = '请求失败，请稍后重试。';
             break;
         }
         break;
@@ -133,7 +146,7 @@ class DioClient {
 class AppInterceptor extends Interceptor {
   @override
   void onRequest(RequestOptions options, RequestInterceptorHandler handler) {
-    debugPrint('请求 [\${options.method}] => PATH: \${options.path}');
+    debugPrint('请求 [${options.method}] => PATH: ${options.path}');
     // TODO: 在这里可以添加 Token 注入、请求头配置等
     // options.headers['Authorization'] = 'Bearer your_token';
     handler.next(options); // 继续请求
@@ -141,13 +154,13 @@ class AppInterceptor extends Interceptor {
 
   @override
   void onResponse(Response response, ResponseInterceptorHandler handler) {
-    debugPrint('响应 [\${response.requestOptions.method}] => PATH: \${response.requestOptions.path} STATUS: \${response.statusCode}');
+    debugPrint('响应 [${response.requestOptions.method}] => PATH: ${response.requestOptions.path} STATUS: ${response.statusCode}');
     handler.next(response); // 继续响应
   }
 
   @override
   void onError(DioException err, ErrorInterceptorHandler handler) {
-    debugPrint('错误 [\${err.requestOptions.method}] => PATH: \${err.requestOptions.path} ERROR: \${err.message}');
+    debugPrint('错误 [${err.requestOptions.method}] => PATH: ${err.requestOptions.path} ERROR: ${err.message}');
     handler.next(err); // 继续错误处理
   }
 }

@@ -6,15 +6,15 @@ import 'package:intl/intl.dart';
 /// 此模型与 FastAPI 后端的用户数据结构完全对齐。
 /// 它支持从 JSON 反序列化 (`fromJson`) 和序列化为 JSON (`toJson`)。
 ///
-/// **如何与 Dio 响应解析联动：**
+/// 如何与 Dio 响应解析联动：
 /// 当使用 Dio 发送请求并收到响应后，可以通过以下方式将 JSON 数据转换为 User 对象：
-/// ```dart
+///
 /// final response = await DioClient.instance.get('/users/me');
 /// if (response.statusCode == 200) {
 ///   final User user = User.fromJson(response.data);
 ///   // 现在你可以使用 user 对象了
 /// }
-/// ```
+///
 class User {
   /// 用户ID
   /// 对应后端字段: `id` (Integer, primary_key)

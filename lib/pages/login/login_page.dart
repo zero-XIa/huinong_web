@@ -6,17 +6,38 @@ import 'package:huinong_web/api/user_api.dart';
 import 'package:huinong_web/provider/app_provider.dart';
 
 class LoginPage extends StatefulWidget {
-  const LoginPage({super.key});
+  final String? username;
+  const LoginPage({super.key, this.username});
 
   @override
   State<LoginPage> createState() => _LoginPageState();
 }
 
 class _LoginPageState extends State<LoginPage> {
-  final _formKey = GlobalKey<FormState>();
-  final _usernameController = TextEditingController();
+  late final TextEditingController _usernameController;
   final _passwordController = TextEditingController();
+  final _formKey = GlobalKey<FormState>();
   bool _isLoading = false;
+
+  @override
+  /// 初始化登录页面的状态。
+  /// [初始化资源]
+  /// 此方法在页面创建时调用，用于初始化用户名控制器。
+  /// 如果 `widget.username` 不为空，将其设置为用户名控制器的文本。
+  void initState() {
+    super.initState(); 
+    _usernameController = TextEditingController(text: widget.username);
+  }
+
+  @override
+  /// 释放登录页面使用的资源。
+  /// [清理资源]
+  /// 此方法在页面销毁时调用，用于释放用户名控制器和密码控制器的资源。
+  void dispose() {
+    _usernameController.dispose();
+    _passwordController.dispose();
+    super.dispose();
+  }
 
   Future<void> _login() async {
     if (_formKey.currentState!.validate()) {
@@ -70,6 +91,7 @@ class _LoginPageState extends State<LoginPage> {
 
     return Scaffold(
       appBar: AppBar(
+        automaticallyImplyLeading: false,  // 隐藏返回箭头
         title: Text('登录', style: TextStyle(fontSize: isElderMode ? 22 : 18)),
         actions: [
           Switch(
@@ -146,8 +168,9 @@ class _LoginPageState extends State<LoginPage> {
                 SizedBox(height: elementSpacing),
                 TextButton(
                   onPressed: () {
-                    Navigator.of(context).push(
+                    Navigator.of(context).pushAndRemoveUntil(
                       MaterialPageRoute(builder: (context) => const RegisterPage()),
+                      ModalRoute.withName('/'), // 清除导航栈
                     );
                   },
                   child: Text('没有账号？立即注册', style: TextStyle(fontSize: linkFontSize)),

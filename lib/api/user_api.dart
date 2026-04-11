@@ -36,8 +36,8 @@ class UserApi {
         'username': username,
         'password': password,
       };
-      if (phone != null && phone.isNotEmpty) {
-        data['phone'] = phone;
+      if (phone != null && phone.trim().isNotEmpty) {
+        data['phone'] = phone.trim().replaceAll(RegExp(r'\s|-'), '');
       }
 
       final response = await DioClient.instance.post<Map<String, dynamic>>(
@@ -47,10 +47,10 @@ class UserApi {
 
       return User.fromJson(response);
     } on ApiException catch (e) {
-      debugPrint('注册失败: ${e.message}');
+      debugPrint('注册失败：${e.message}');
       rethrow;
     } catch (e) {
-      debugPrint('注册时发生未知错误: $e');
+      debugPrint('注册时发生未知错误：$e');
       rethrow;
     }
   }
