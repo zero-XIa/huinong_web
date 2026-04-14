@@ -6,6 +6,92 @@ import 'package:provider/provider.dart';
 import 'package:huinong_web/api/dio_client.dart';
 import 'package:huinong_web/provider/app_provider.dart';
 
+/// 打字指示器组件 - 显示三个跳动的圆点
+class TypingIndicator extends StatefulWidget {
+  const TypingIndicator({super.key});
+
+  @override
+  State<TypingIndicator> createState() => _TypingIndicatorState();
+}
+
+class _TypingIndicatorState extends State<TypingIndicator>
+    with TickerProviderStateMixin {
+  late AnimationController _controller;
+  late Animation<double> _dot1Animation;
+  late Animation<double> _dot2Animation;
+  late Animation<double> _dot3Animation;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      duration: const Duration(milliseconds: 1200),
+      vsync: this,
+    );
+
+    _dot1Animation = Tween<double>(begin: 0.0, end: 1.0).animate(
+      CurvedAnimation(
+        parent: _controller,
+        curve: const Interval(0.0, 0.4, curve: Curves.easeInOut),
+      ),
+    );
+    _dot2Animation = Tween<double>(begin: 0.0, end: 1.0).animate(
+      CurvedAnimation(
+        parent: _controller,
+        curve: const Interval(0.2, 0.6, curve: Curves.easeInOut),
+      ),
+    );
+    _dot3Animation = Tween<double>(begin: 0.0, end: 1.0).animate(
+      CurvedAnimation(
+        parent: _controller,
+        curve: const Interval(0.4, 0.8, curve: Curves.easeInOut),
+      ),
+    );
+
+    _controller.repeat();
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        _buildDot(_dot1Animation),
+        _buildDot(_dot2Animation),
+        _buildDot(_dot3Animation),
+      ],
+    );
+  }
+
+  Widget _buildDot(Animation<double> animation) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 2),
+      child: AnimatedBuilder(
+        animation: animation,
+        builder: (context, child) {
+          return Transform.translate(
+            offset: Offset(0, -8 * animation.value),
+            child: Container(
+              width: 8,
+              height: 8,
+              decoration: const BoxDecoration(
+                color: Color(0xFF9E9E9E),
+                shape: BoxShape.circle,
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+}
+
 /// 问诊页面 - 使用 HTTPS POST 请求与后端通信
 class ConsultPage extends StatefulWidget {
   const ConsultPage({super.key});
@@ -30,6 +116,7 @@ class _ConsultPageState extends State<ConsultPage> {
   // 状态管理
   bool _isSending = false;
   bool _isLoadingHistory = false;
+  bool _isAITyping = false;
 
   @override
   void initState() {
@@ -146,18 +233,10 @@ class _ConsultPageState extends State<ConsultPage> {
 
       _scrollToBottom();
 
-      // 添加正在发送的 AI 消息提示
-      final pendingMessageIndex = _messages.length;
+      // 设置 AI 正在回复状态
       setState(() {
-        _messages.add({
-          'role': 'ai',
-          'content': '正在发送...',
-          'isUser': false,
-          'isPending': true,
-        });
+        _isAITyping = true;
       });
-
-      _scrollToBottom();
 
       // 发送请求
       final response = await DioClient.instance.post<Map<String, dynamic>>(
@@ -165,15 +244,17 @@ class _ConsultPageState extends State<ConsultPage> {
         data: formData,
       );
 
-      // 替换正在发送的消息为实际回复
+      // 处理 AI 回复
       if (mounted) {
         setState(() {
+          // 取消等待状态
+          _isAITyping = false;
+          
           // 后端返回格式: {"message": "...", "data": {"answer": "...", ...}}
           final answer = response['data'] is Map ? (response['data'] as Map)['answer'] : null;
           final content = answer ?? (response['message'] as String? ?? '收到您的问题，正在处理中...');
           
-          // 移除正在发送的消息，添加实际回复
-          _messages.removeAt(pendingMessageIndex);
+          // 添加实际回复到消息列表
           _messages.add({
             'role': 'ai',
             'content': content,
@@ -184,6 +265,9 @@ class _ConsultPageState extends State<ConsultPage> {
       }
     } catch (e) {
       if (mounted) {
+        setState(() {
+          _isAITyping = false;  // 失败时也要取消等待状态
+        });
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('发送失败: $e')),
         );
@@ -206,7 +290,6 @@ class _ConsultPageState extends State<ConsultPage> {
 
   Widget _buildMessageBubble(Map<String, dynamic> message) {
     final isUser = message['isUser'] as bool;
-    final isPending = message['isPending'] as bool? ?? false;
     
     return Align(
       alignment: isUser ? Alignment.centerRight : Alignment.centerLeft,
@@ -214,9 +297,7 @@ class _ConsultPageState extends State<ConsultPage> {
         margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
         padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
-          color: isPending 
-            ? Colors.grey[300]
-            : (isUser ? const Color(0xFF2E7D32) : Colors.grey[200]),
+          color: isUser ? const Color(0xFF2E7D32) : Colors.grey[200],
           borderRadius: BorderRadius.circular(12),
         ),
         child: Column(
@@ -237,34 +318,30 @@ class _ConsultPageState extends State<ConsultPage> {
               ]
             ],
             const SizedBox(height: 8),
-            if (isPending)
-              const Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  CircularProgressIndicator(
-                    strokeWidth: 2,
-                    valueColor: AlwaysStoppedAnimation<Color>(Colors.grey),
-                  ),
-                  SizedBox(width: 8),
-                  Text(
-                    '正在发送...',
-                    style: TextStyle(
-                      color: Colors.grey,
-                      fontSize: 14,
-                    ),
-                  ),
-                ],
-              )
-            else
-              Text(
-                message['content'] as String,
-                style: TextStyle(
-                  color: isUser ? Colors.white : Colors.black87,
-                  fontSize: 14,
-                ),
+            Text(
+              message['content'] as String,
+              style: TextStyle(
+                color: isUser ? Colors.white : Colors.black87,
+                fontSize: 14,
               ),
+            ),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _buildTypingIndicatorMessage() {
+    return Align(
+      alignment: Alignment.centerLeft,
+      child: Container(
+        margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        decoration: BoxDecoration(
+          color: Colors.grey[200],
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: const TypingIndicator(),
       ),
     );
   }
@@ -458,8 +535,12 @@ class _ConsultPageState extends State<ConsultPage> {
                 : ListView.builder(
                     controller: _scrollController,
                     padding: EdgeInsets.all(padding),
-                    itemCount: _messages.length,
+                    itemCount: _messages.length + (_isAITyping ? 1 : 0),
                     itemBuilder: (context, index) {
+                      // 如果是最后一个位置且正在等待，显示 TypingIndicator
+                      if (_isAITyping && index == _messages.length) {
+                        return _buildTypingIndicatorMessage();
+                      }
                       return _buildMessageBubble(_messages[index]);
                     },
                   ),
