@@ -9,8 +9,17 @@
 ## 二、后端接口基础信息
 - **Base URL**：`http://127.0.0.1:8000/api/v1`
 - **API 版本**：v1，路径前缀 `/api/v1`
-- **认证方式**：JWT Token，有效期 2 小时
-  - 请求头：`Authorization: Bearer <token>`
+- **认证方式**：JWT (JSON Web Token)，无状态认证
+  - 登录成功后，后端返回 `access_token`（JWT），前端存储在本地（如 localStorage 或 SharedPreferences）。
+  - 后续所有需要认证的接口，前端必须在 HTTP 请求头中携带：
+    - `Authorization: Bearer <access_token>`
+  - 后端处理流程：
+    1. 从 `Authorization` 头中提取 token。
+    2. 验证 token 签名和过期时间（使用 `SECRET_KEY`）。
+    3. 从 token 中解析出 `user_id` 和 `role`。
+    4. 可选：根据 `user_id` 查询数据库获取完整用户信息（也可直接信任 token 中的信息）。
+    5. 对于管理员专用接口，检查 token 中的 `role == "admin"`。
+  - Token 有效期：2 小时（可配置）。过期后前端应引导用户重新登录。
   - 不需要认证的接口：`POST /users/register`、`POST /users/login`、`GET /`
 - **请求格式**：
   - 普通数据：`application/json`
@@ -165,29 +174,22 @@
   "list": [ ... ]
 }
 ```
-## 九、WebSocket 接口（智能问答）
+## 九、问诊模块接口（HTTP）
 
-- **URL**：`ws://127.0.0.1:8000/ws/chat?token=<jwt_token>`
-- **发送报文**：
-```json
-{ "content": "用户问题", "session_id": "可选" }
-```
-
-- **接收报文（流式）**：
-```json
-{ "role": "ai", "content": "逐字文本", "is_end": false }
-```
-
-- 结束时 `is_end: true`
-- 连接成功会返回：
-```json
-{ "type": "connected", "session_id": "xxx" }
-```
-
-- `type` 字段取值说明：
-  - `connected`：连接成功
-  - `error`：错误响应
-  - `message`：流式消息（也可直接使用 role/content/is_end 结构）
+问诊模块所有接口均使用 HTTP 协议，认证方式为 JWT Bearer Token（见“二、后端接口基础信息”）。接口详细定义见 `api_short.md`。
+### 接口列表
+- `POST /chat/message`：纯文本问答（一次性返回完整回答）
+- `POST /chat/message_with_image`：图片辅助问答
+- `GET /chat/sessions`：获取当前用户的会话列表
+- `GET /chat/sessions/{session_id}/messages`：获取某个会话的历史消息
+- `DELETE /chat/sessions/{session_id}`：删除会话及其所有消息
+### 统一注意事项
+- 所有接口均需认证，请求头必须包含 `Authorization: Bearer <access_token>`。
+- 响应格式遵循 `{code, message, data}` 结构。
+- 分页参数统一使用 `skip`（默认0）和 `limit`（默认20，最大100）。
+- 时间字段统一使用 ISO 8601 UTC 格式。
+- 会话 `title` 自动生成为首次用户消息的前20字符。
+- Dify 调用使用 `response_mode: "blocking"` 获取完整回答，不要求流式输出。
 
 ## 十、前端代码分层（必须遵守）
 
