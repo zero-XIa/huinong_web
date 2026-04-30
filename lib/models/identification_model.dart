@@ -34,6 +34,10 @@ class Identification {
   /// 对应后端字段: `image_url` (String, nullable=False)
   final String imageUrl;
 
+  /// 作物名称
+  /// 对应后端字段: `crop_name` (String, nullable=True)
+  final String? cropName;
+
   /// 病害名称
   /// 对应后端字段: `disease_name` (String, nullable=True)
   final String? diseaseName;
@@ -59,6 +63,7 @@ class Identification {
     this.userId,
     this.cropId,
     required this.imageUrl,
+    this.cropName,
     this.diseaseName,
     this.advice,
     this.confidence,
@@ -73,6 +78,7 @@ class Identification {
       userId: json['user_id'] as int?,
       cropId: json['crop_id'] as int?,
       imageUrl: json['image_url'] as String,
+      cropName: json['crop_name'] as String?,
       diseaseName: json['disease_name'] as String?,
       advice: json['advice'] as String?,
       confidence: (json['confidence'] as num?)?.toDouble(),
@@ -90,6 +96,7 @@ class Identification {
       'user_id': userId,
       'crop_id': cropId,
       'image_url': imageUrl,
+      'crop_name': cropName,
       'disease_name': diseaseName,
       'advice': advice,
       'confidence': confidence,
@@ -104,7 +111,7 @@ class Identification {
     if (createTime == null) {
       return '未知时间';
     }
-    return DateFormat('yyyy-MM-dd HH:mm').format(createTime!);
+    return DateFormat('yyyy-MM-dd').format(createTime!);
   }
 
   @override

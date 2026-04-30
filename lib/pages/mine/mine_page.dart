@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
-import 'package:huinong_web/pages/login/login_page.dart';
+import 'package:huinong_web/api/user_api.dart';
 import 'package:provider/provider.dart';
 import 'package:huinong_web/models/user_model.dart';
 import 'package:huinong_web/provider/app_provider.dart';
+import 'package:huinong_web/utils/error_handler.dart';
+import 'package:huinong_web/components/change_password_dialog.dart';
 
 class MinePage extends StatefulWidget {
   const MinePage({super.key});
@@ -13,48 +15,167 @@ class MinePage extends StatefulWidget {
 
 class _MinePageState extends State<MinePage> {
   User? _currentUser;
+  bool _isLoading = false;
 
   @override
   void initState() {
     super.initState();
-    // 从 AppProvider 获取当前用户信息
     _currentUser = Provider.of<AppProvider>(context, listen: false).currentUser;
+    _loadUserInfo();
   }
 
-  Future<void> _logout() async {
-    // 通过 AppProvider 退出登录
-    await Provider.of<AppProvider>(context, listen: false).logout();
+  Future<void> _loadUserInfo() async {
+    setState(() {
+      _isLoading = true;
+    });
+    try {
+      final user = await UserApi.instance.getCurrentUser();
+      if (!mounted) return;
+      Provider.of<AppProvider>(context, listen: false).updateUser(user);
+      setState(() {
+        _currentUser = user;
+      });
+    } catch (e) {
+      debugPrint('刷新用户信息失败: $e');
+    }
     if (mounted) {
-      // 导航到登录页
-      Navigator.of(context).pushAndRemoveUntil(
-        MaterialPageRoute(builder: (context) => const LoginPage()),
-        (route) => false,
-      );
+      setState(() {
+        _isLoading = false;
+      });
     }
   }
 
-  Widget _buildInfoRow(String label, String value, bool isElderMode, Color elderTextColor, double baseFontSize, double padding) {
+  String _maskPhone(String? phone) {
+    if (phone == null || phone.isEmpty) {
+      return '未绑定';
+    }
+    if (phone.length >= 11) {
+      return '${phone.substring(0, 3)}****${phone.substring(7)}';
+    }
+    return phone;
+  }
+
+  void _showChangePhoneDialog() {
+    final TextEditingController phoneController = TextEditingController();
+    bool isLoading = false;
+
+    showDialog(
+      context: context,
+      builder: (ctx) {
+        final theme = Theme.of(ctx);
+        return StatefulBuilder(
+          builder: (context, setState) {
+            return AlertDialog(
+              title: Text(
+                '修改手机号',
+                style: theme.textTheme.titleLarge,
+              ),
+              content: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    TextField(
+                      controller: phoneController,
+                      keyboardType: TextInputType.phone,
+                      decoration: const InputDecoration(
+                        labelText: '新手机号',
+                        hintText: '请输入11位手机号',
+                      ),
+                      style: theme.textTheme.bodyLarge,
+                    ),
+                  ],
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(ctx),
+                  child: const Text('取消'),
+                ),
+                ElevatedButton(
+                  onPressed: () async {
+                          final newPhone = phoneController.text.trim();
+                          if (!RegExp(r'^1\d{10}$').hasMatch(newPhone)) {
+                            ErrorHandler.showErrorSnackBar(ctx, '请输入有效的11位手机号');
+                            return;
+                          }
+
+                          setState(() => isLoading = true);
+                          try {
+                            final updatedUser = await UserApi.instance.updateUser(phone: newPhone);
+                            if (!ctx.mounted) {
+                              setState(() => isLoading = false);
+                              return;
+                            }
+                            Provider.of<AppProvider>(ctx, listen: false).updateUser(updatedUser);
+                            setState(() => _currentUser = updatedUser);
+                            Navigator.pop(ctx);
+                            ScaffoldMessenger.of(ctx).showSnackBar(
+                              const SnackBar(content: Text('手机号修改成功')),
+                            );
+                          } catch (e) {
+                            if (!ctx.mounted) {
+                              setState(() => isLoading = false);
+                              return;
+                            }
+                            ErrorHandler.showErrorSnackBar(ctx, e);
+                          }
+                          setState(() => isLoading = false);
+                        },
+                  child: isLoading
+                      ? const CircularProgressIndicator(color: Colors.white)
+                      : const Text('确认'),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
+
+  Future<void> _logout() async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('退出登录'),
+        content: const Text('确定要退出登录吗？'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('取消'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('确定'),
+          ),
+        ],
+      ),
+    );
+    if (confirm == true) {
+      if (!mounted) return;
+      await Provider.of<AppProvider>(context, listen: false).logout();
+    }
+  }
+
+  Widget _buildInfoRow(BuildContext context, String label, String value) {
     return Container(
-      padding: EdgeInsets.symmetric(vertical: padding / 2),
+      padding: const EdgeInsets.symmetric(vertical: 8),
       decoration: BoxDecoration(
-        border: Border(bottom: BorderSide(color: Colors.grey.shade300)),
+        border: Border(bottom: BorderSide(color: Theme.of(context).dividerColor)),
       ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           Text(
             label,
-            style: TextStyle(
-              fontSize: isElderMode ? baseFontSize : 16.0,
+            style: Theme.of(context).textTheme.bodyLarge?.copyWith(
               fontWeight: FontWeight.bold,
-              color: isElderMode ? elderTextColor : Colors.black87,
             ),
           ),
           Text(
             value,
-            style: TextStyle(
-              fontSize: isElderMode ? baseFontSize : 16.0,
-              color: isElderMode ? elderTextColor : Colors.black54,
+            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+              color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
             ),
           ),
         ],
@@ -65,115 +186,119 @@ class _MinePageState extends State<MinePage> {
   @override
   Widget build(BuildContext context) {
     final appProvider = Provider.of<AppProvider>(context);
-    final isElderMode = appProvider.isElderlyMode;
-
-    // 适老化样式配置
-    final double baseFontSize = isElderMode ? 18.0 : 14.0;
-    final double titleFontSize = isElderMode ? 22.0 : 16.0;
-    final double buttonTextFontSize = isElderMode ? 20.0 : 16.0;
-    final double padding = isElderMode ? 20.0 : 8.0;
-    final double buttonHeight = isElderMode ? 50.0 : 40.0;
-    const Color elderTextColor = Color(0xFF333333);
-    const Color elderBackgroundColor = Color(0xFFF5F5DC);
+    final theme = Theme.of(context);
 
     return Scaffold(
-      backgroundColor: isElderMode ? elderBackgroundColor : null,
+      backgroundColor: theme.scaffoldBackgroundColor,
       appBar: AppBar(
         title: Text(
           '我的',
-          style: TextStyle(
-            fontSize: isElderMode ? titleFontSize : null,
-            color: isElderMode ? elderTextColor : null,
-          ),
+          style: theme.textTheme.titleLarge,
         ),
       ),
-      body: _currentUser == null
-          ? const Center(child: Text('未能加载用户信息'))
-          : SingleChildScrollView(
-              padding: EdgeInsets.all(padding),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // 用户信息卡片
-                  Card(
-                    elevation: isElderMode ? 4.0 : null,
-                    margin: EdgeInsets.only(bottom: padding),
-                    child: Padding(
-                      padding: EdgeInsets.all(padding),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            '个人信息',
-                            style: TextStyle(
-                              fontSize: isElderMode ? titleFontSize : 18.0,
+      body: _isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : _currentUser == null
+              ? Center(
+                  child: Text(
+                    '未能加载用户信息',
+                    style: theme.textTheme.bodyLarge,
+                  ),
+                )
+              : SingleChildScrollView(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Card(
+                        child: Padding(
+                          padding: const EdgeInsets.all(16),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                '个人信息',
+                                style: theme.textTheme.titleMedium?.copyWith(
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                              const SizedBox(height: 16),
+                              _buildInfoRow(context, '用户名', _currentUser!.username),
+                              _buildInfoRow(context, '手机号', _maskPhone(_currentUser!.phone)),
+                              _buildInfoRow(context, '注册时间', _currentUser!.formattedCreateTime),
+                            ],
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      Card(
+                        child: ListTile(
+                          title: Text(
+                            '修改手机号',
+                            style: theme.textTheme.titleMedium?.copyWith(
                               fontWeight: FontWeight.bold,
-                              color: isElderMode ? elderTextColor : Colors.black87,
                             ),
                           ),
-                          SizedBox(height: padding),
-                          _buildInfoRow('用户名', _currentUser!.username, isElderMode, elderTextColor, baseFontSize, padding),
-                          _buildInfoRow('手机号', _currentUser!.phone ?? '未设置', isElderMode, elderTextColor, baseFontSize, padding),
-                          _buildInfoRow('注册时间', _currentUser!.formattedCreateTime, isElderMode, elderTextColor, baseFontSize, padding),
-                        ],
+                          trailing: const Icon(Icons.arrow_forward_ios),
+                          onTap: _showChangePhoneDialog,
+                        ),
                       ),
-                    ),
-                  ),
-                  SizedBox(height: padding),
-                  // 适老化模式开关
-                  Card(
-                    elevation: isElderMode ? 4.0 : null,
-                    margin: EdgeInsets.only(bottom: padding),
-                    child: Padding(
-                      padding: EdgeInsets.all(padding),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Text(
-                            '适老化模式',
-                            style: TextStyle(
-                              fontSize: isElderMode ? titleFontSize : 18.0,
+                      const SizedBox(height: 16),
+                      Card(
+                        child: ListTile(
+                          title: Text(
+                            '修改密码',
+                            style: theme.textTheme.titleMedium?.copyWith(
                               fontWeight: FontWeight.bold,
-                              color: isElderMode ? elderTextColor : Colors.black87,
                             ),
                           ),
-                          Switch(
-                            value: isElderMode,
-                            onChanged: (value) {
-                              appProvider.toggleElderlyMode();
-                            },
-                            activeTrackColor: Theme.of(context).primaryColor,
+                          trailing: const Icon(Icons.arrow_forward_ios),
+                          onTap: () => ChangePasswordDialog.show(context),
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      Card(
+                        child: Padding(
+                          padding: const EdgeInsets.all(16),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Text(
+                                '长辈模式',
+                                style: theme.textTheme.titleMedium?.copyWith(
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                              Switch(
+                                value: appProvider.isElderlyMode,
+                                onChanged: (value) {
+                                  appProvider.updateElderMode(value, context);
+                                },
+                                activeTrackColor: theme.primaryColor,
+                              ),
+                            ],
                           ),
-                        ],
+                        ),
                       ),
-                    ),
-                  ),
-                  SizedBox(height: padding * 2),
-                  // 退出登录按钮
-                  SizedBox(
-                    height: buttonHeight,
-                    width: double.infinity,
-                    child: ElevatedButton(
-                      onPressed: _logout,
-                      style: isElderMode
-                          ? ElevatedButton.styleFrom(
-                              backgroundColor: Colors.red.shade700,
-                              foregroundColor: Colors.white,
-                              textStyle: TextStyle(fontSize: buttonTextFontSize),
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8.0)),
-                            )
-                          : ElevatedButton.styleFrom(
-                              backgroundColor: Colors.red,
+                      const SizedBox(height: 32),
+                      SizedBox(
+                        width: double.infinity,
+                        child: ElevatedButton(
+                          onPressed: _logout,
+                          style: theme.elevatedButtonTheme.style?.copyWith(
+                            backgroundColor: WidgetStateProperty.all(Colors.red),
+                          ),
+                          child: Text(
+                            '退出登录',
+                            style: theme.textTheme.labelLarge?.copyWith(
+                              color: Colors.white,
                             ),
-                      child: Text(
-                        '退出登录',
-                        style: TextStyle(fontSize: isElderMode ? buttonTextFontSize : null),
+                          ),
+                        ),
                       ),
-                    ),
+                    ],
                   ),
-                ],
-              ),
-            ),
+                ),
     );
   }
 }

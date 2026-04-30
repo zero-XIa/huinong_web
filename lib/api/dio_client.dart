@@ -1,5 +1,7 @@
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart'; // For debugPrint
+import 'package:huinong_web/provider/app_provider.dart';
+import 'package:huinong_web/utils/secure_storage.dart';
 
 /// 自定义 API 异常
 class ApiException implements Exception {
@@ -21,6 +23,12 @@ class DioClient {
   static final DioClient _instance = DioClient._();
   static DioClient get instance => _instance;
   late Dio _dio;
+  static AppProvider? _appProvider;
+  
+  /// 设置 AppProvider 实例
+  static void setAppProvider(AppProvider provider) {
+    _appProvider = provider;
+  }
 
   /// 初始化 Dio 客户端
   void init(String baseUrl) {
@@ -77,6 +85,54 @@ class DioClient {
         onReceiveProgress: onReceiveProgress,
       );
       return response.data!;
+    } on DioException catch (e) {
+      throw _handleDioException(e);
+    }
+  }
+
+  /// 通用 PUT 请求
+  Future<T?> put<T>(
+    String path, {
+    dynamic data,
+    Map<String, dynamic>? queryParameters,
+    Options? options,
+    CancelToken? cancelToken,
+  }) async {
+    debugPrint('DioClient.put called: path=$path, data=$data');
+    try {
+      final response = await _dio.put<T>(
+        path,
+        data: data,
+        queryParameters: queryParameters,
+        options: options,
+        cancelToken: cancelToken,
+      );
+      debugPrint('DioClient.put success: status=${response.statusCode}');
+      return response.data;
+    } on DioException catch (e) {
+      debugPrint('DioClient.put DioException: ${e.type}, message: ${e.message}');
+      throw _handleDioException(e);
+    } catch (e) {
+      debugPrint('DioClient.put unknown error: $e');
+      rethrow;
+    }
+  }
+
+  /// 通用 DELETE 请求
+  Future<T?> delete<T>(
+    String path, {
+    Map<String, dynamic>? queryParameters,
+    Options? options,
+    CancelToken? cancelToken,
+  }) async {
+    try {
+      final response = await _dio.delete<T>(
+        path,
+        queryParameters: queryParameters,
+        options: options,
+        cancelToken: cancelToken,
+      );
+      return response.data;
     } on DioException catch (e) {
       throw _handleDioException(e);
     }
@@ -145,22 +201,73 @@ class DioClient {
 /// Dio 请求拦截器
 class AppInterceptor extends Interceptor {
   @override
-  void onRequest(RequestOptions options, RequestInterceptorHandler handler) {
-    debugPrint('请求 [${options.method}] => PATH: ${options.path}');
-    // TODO: 在这里可以添加 Token 注入、请求头配置等
-    // options.headers['Authorization'] = 'Bearer your_token';
-    handler.next(options); // 继续请求
+  void onRequest(RequestOptions options, RequestInterceptorHandler handler) async {
+    debugPrint('请求拦截器开始 [${options.method}] => PATH: ${options.path}');
+    try {
+      if (options.path == '/users/login') {
+        final loginData = options.data;
+        if (loginData is Map<String, dynamic>) {
+          final safeData = Map<String, dynamic>.from(loginData);
+          safeData['password'] = '******';
+          debugPrint('登录请求体: $safeData');
+        }
+      }
+      debugPrint('开始获取 token...');
+      final token = await SecureStorage.instance.getToken();
+      debugPrint('获取 token 完成: ${token != null ? '有 token' : '无 token'}');
+      if (token != null) {
+        options.headers['Authorization'] = 'Bearer $token';
+        debugPrint('添加 Authorization header: Bearer ${token.substring(0, 10)}...');
+      }
+    } catch (e) {
+      debugPrint('请求拦截器异常: $e');
+    } finally {
+      debugPrint('调用 handler.next(options)，请求继续');
+      handler.next(options);
+    }
   }
 
   @override
   void onResponse(Response response, ResponseInterceptorHandler handler) {
     debugPrint('响应 [${response.requestOptions.method}] => PATH: ${response.requestOptions.path} STATUS: ${response.statusCode}');
+    
+    // 解析响应结构 {code, message, data}
+    if (response.statusCode == 200) {
+      final data = response.data;
+      if (data is Map<String, dynamic>) {
+        final code = data['code'] as int?;
+        if (code == 200) {
+          // 只返回 data 字段给上层
+          response.data = data['data'];
+        } else {
+          // 业务错误，抛出 ApiException
+          final message = data['message'] as String? ?? '请求失败';
+          final apiError = ApiException(message, code: code);
+          handler.reject(DioException(
+            requestOptions: response.requestOptions,
+            response: response,
+            error: apiError,
+            type: DioExceptionType.badResponse,
+          ));
+          return;
+        }
+      }
+    }
     handler.next(response); // 继续响应
   }
 
   @override
   void onError(DioException err, ErrorInterceptorHandler handler) {
     debugPrint('错误 [${err.requestOptions.method}] => PATH: ${err.requestOptions.path} ERROR: ${err.message}');
+    
+    // 处理 401 错误
+    if (err.response?.statusCode == 401) {
+      // 调用 AppProvider.logout() 并跳转登录页
+      if (DioClient._appProvider != null) {
+        DioClient._appProvider!.logout();
+      }
+    }
+    
     handler.next(err); // 继续错误处理
   }
 }

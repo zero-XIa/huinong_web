@@ -3,6 +3,7 @@ import 'package:flutter_staggered_grid_view/flutter_staggered_grid_view.dart';
 import 'package:provider/provider.dart';
 import 'package:huinong_web/api/news_api.dart';
 import 'package:huinong_web/models/news_model.dart';
+import 'package:huinong_web/pages/news/news_detail_page.dart';
 import 'package:huinong_web/provider/app_provider.dart';
 
 class HomePage extends StatefulWidget {
@@ -37,7 +38,8 @@ class _HomePageState extends State<HomePage> {
     });
 
     try {
-      final newNews = await NewsApi.instance.getNews(skip: _page * 10, limit: 10);
+      final response = await NewsApi.instance.getNews(skip: _page * 10, limit: 10);
+      final newNews = response.list;
       if (newNews.isEmpty) {
         setState(() {
           _hasMore = false;
@@ -46,6 +48,8 @@ class _HomePageState extends State<HomePage> {
         setState(() {
           _newsList.addAll(newNews);
           _page++;
+          // 检查是否还有更多数据
+          _hasMore = _newsList.length < response.total;
         });
       }
     } catch (e) {
@@ -98,59 +102,69 @@ class _HomePageState extends State<HomePage> {
   }
 
   Widget _buildNewsCard(News news, bool isElderMode) {
-    return Card(
-      clipBehavior: Clip.antiAlias,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          if (news.coverUrl != null && news.coverUrl!.isNotEmpty)
-            Image.network(
-              news.coverUrl!,
-              fit: BoxFit.cover,
-              width: double.infinity,
-              height: 120, // Adjust height as needed
-            ),
-          Padding(
-            padding: const EdgeInsets.all(8.0),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    const CircleAvatar(
-                      radius: 12,
-                      child: Icon(Icons.admin_panel_settings, size: 16),
-                    ),
-                    const SizedBox(width: 8),
-                    Text(
-                      '管理员',
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: isElderMode ? 16 : 12,
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  news.title,
-                  style: TextStyle(
-                    fontWeight: FontWeight.bold,
-                    fontSize: isElderMode ? 20 : 16,
-                  ),
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                ),
-                const SizedBox(height: 8),
-                if (news.category != null)
-                  Chip(
-                    label: Text(news.category!),
-                    padding: EdgeInsets.zero,
-                  ),
-              ],
-            ),
+    return InkWell(
+      onTap: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => NewsDetailPage(id: news.id!),
           ),
-        ],
+        );
+      },
+      child: Card(
+        clipBehavior: Clip.antiAlias,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            if (news.coverUrl != null && news.coverUrl!.isNotEmpty)
+              Image.network(
+                news.coverUrl!,
+                fit: BoxFit.cover,
+                width: double.infinity,
+                height: 120,
+              ),
+            Padding(
+              padding: const EdgeInsets.all(8.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      const CircleAvatar(
+                        radius: 12,
+                        child: Icon(Icons.admin_panel_settings, size: 16),
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        '管理员',
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: isElderMode ? 16 : 12,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    news.title,
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: isElderMode ? 20 : 16,
+                    ),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  const SizedBox(height: 8),
+                  if (news.category != null)
+                    Chip(
+                      label: Text(news.category!),
+                      padding: EdgeInsets.zero,
+                    ),
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

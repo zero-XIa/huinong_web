@@ -32,9 +32,9 @@ class User {
   /// 对应后端字段: `phone` (String, unique, nullable=True)
   final String? phone;
 
-  /// 适老化模式标记
+  /// 长辈模式标记
   /// 对应后端字段: `elder_mode` (Boolean, default=False)
-  /// 用于判断是否启用适老化界面，这是您提到的“适老化标记字段”。
+  /// 用于判断是否启用长辈界面，这是您提到的“长辈标记字段”。
   final bool elderMode;
 
   /// 创建时间

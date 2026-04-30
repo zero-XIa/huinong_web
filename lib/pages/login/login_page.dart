@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:huinong_web/main.dart';
+import 'package:huinong_web/models/user_model.dart';
 import 'package:huinong_web/pages/register/register_page.dart';
 import 'package:provider/provider.dart';
 import 'package:huinong_web/api/user_api.dart';
@@ -46,13 +47,20 @@ class _LoginPageState extends State<LoginPage> {
       });
 
       try {
-        final user = await UserApi.instance.login(
+        final response = await UserApi.instance.login(
           _usernameController.text,
           _passwordController.text,
         );
 
+        final user = User.fromJson(response['user']);
+        final token = response['access_token'] as String;
+
+        debugPrint('[LOGIN] 登录响应中的 elder_mode: ${user.elderMode}');
+        debugPrint('[LOGIN] 准备调用 setUser, elderMode: ${user.elderMode}, token: ${token.substring(0, 10)}...');
+
         if (mounted) {
-          Provider.of<AppProvider>(context, listen: false).setUser(user);
+          Provider.of<AppProvider>(context, listen: false).setUser(user, token);
+          debugPrint('[LOGIN] setUser 调用完成');
           Navigator.of(context).pushReplacement(
             MaterialPageRoute(builder: (context) => const MainScreen()),
           );
@@ -76,36 +84,28 @@ class _LoginPageState extends State<LoginPage> {
   @override
   Widget build(BuildContext context) {
     final appProvider = Provider.of<AppProvider>(context);
-    final isElderMode = appProvider.isElderlyMode;
-
-    // Conditional Styling
-    final double inputFontSize = isElderMode ? 18.0 : 14.0;
-    final double buttonFontSize = isElderMode ? 19.0 : 16.0;
-    final double linkFontSize = isElderMode ? 16.0 : 14.0;
-    final double elementSpacing = isElderMode ? 24.0 : 16.0;
-    final double buttonHeight = isElderMode ? 56.0 : 44.0;
-    final BorderRadius borderRadius = BorderRadius.circular(isElderMode ? 12.0 : 8.0);
-    final Color inputTextColor = isElderMode ? const Color(0xFF333333) : Colors.black;
-    final Color inputFillColor = isElderMode ? const Color(0xFFF5F5DC) : Colors.grey[200]!;
-    final EdgeInsets inputPadding = EdgeInsets.symmetric(vertical: isElderMode ? 18 : 12, horizontal: 16);
+    final theme = Theme.of(context);
 
     return Scaffold(
       appBar: AppBar(
-        automaticallyImplyLeading: false,  // 隐藏返回箭头
-        title: Text('登录', style: TextStyle(fontSize: isElderMode ? 22 : 18)),
+        automaticallyImplyLeading: false,
+        title: Text(
+          '登录',
+          style: theme.textTheme.titleLarge,
+        ),
         actions: [
           Switch(
-            value: isElderMode,
+            value: appProvider.isElderlyMode,
             onChanged: (value) {
               appProvider.toggleElderlyMode();
             },
           ),
         ],
       ),
-      backgroundColor: isElderMode ? const Color(0xFFF5F5DC) : null,
+      backgroundColor: theme.scaffoldBackgroundColor,
       body: Center(
         child: SingleChildScrollView(
-          padding: EdgeInsets.all(elementSpacing),
+          padding: const EdgeInsets.all(16),
           child: Form(
             key: _formKey,
             child: Column(
@@ -113,14 +113,10 @@ class _LoginPageState extends State<LoginPage> {
               children: [
                 TextFormField(
                   controller: _usernameController,
-                  style: TextStyle(fontSize: inputFontSize, color: inputTextColor),
-                  decoration: InputDecoration(
+                  style: theme.textTheme.bodyLarge,
+                  decoration: const InputDecoration(
                     labelText: '用户名',
-                    labelStyle: TextStyle(fontSize: inputFontSize, color: inputTextColor.withAlpha(179)),
                     filled: true,
-                    fillColor: inputFillColor,
-                    border: OutlineInputBorder(borderRadius: borderRadius, borderSide: BorderSide.none),
-                    contentPadding: inputPadding,
                   ),
                   validator: (value) {
                     if (value == null || value.isEmpty) {
@@ -129,17 +125,13 @@ class _LoginPageState extends State<LoginPage> {
                     return null;
                   },
                 ),
-                SizedBox(height: elementSpacing),
+                const SizedBox(height: 16),
                 TextFormField(
                   controller: _passwordController,
-                  style: TextStyle(fontSize: inputFontSize, color: inputTextColor),
-                  decoration: InputDecoration(
+                  style: theme.textTheme.bodyLarge,
+                  decoration: const InputDecoration(
                     labelText: '密码',
-                    labelStyle: TextStyle(fontSize: inputFontSize, color: inputTextColor.withAlpha(179)),
                     filled: true,
-                    fillColor: inputFillColor,
-                    border: OutlineInputBorder(borderRadius: borderRadius, borderSide: BorderSide.none),
-                    contentPadding: inputPadding,
                   ),
                   obscureText: true,
                   validator: (value) {
@@ -149,31 +141,25 @@ class _LoginPageState extends State<LoginPage> {
                     return null;
                   },
                 ),
-                SizedBox(height: elementSpacing * 1.5),
+                const SizedBox(height: 24),
                 _isLoading
                     ? const CircularProgressIndicator()
                     : SizedBox(
                         width: double.infinity,
-                        height: buttonHeight,
                         child: ElevatedButton(
                           onPressed: _login,
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: const Color(0xFF2E7D32),
-                            foregroundColor: Colors.white,
-                            shape: RoundedRectangleBorder(borderRadius: borderRadius),
-                          ),
-                          child: Text('登录', style: TextStyle(fontSize: buttonFontSize)),
+                          child: const Text('登录'),
                         ),
                       ),
-                SizedBox(height: elementSpacing),
+                const SizedBox(height: 16),
                 TextButton(
                   onPressed: () {
                     Navigator.of(context).pushAndRemoveUntil(
                       MaterialPageRoute(builder: (context) => const RegisterPage()),
-                      ModalRoute.withName('/'), // 清除导航栈
+                      ModalRoute.withName('/'),
                     );
                   },
-                  child: Text('没有账号？立即注册', style: TextStyle(fontSize: linkFontSize)),
+                  child: const Text('没有账号？立即注册'),
                 ),
               ],
             ),
