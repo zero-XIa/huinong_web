@@ -182,7 +182,9 @@ class _AdminNewsPageState extends State<AdminNewsPage> {
                             }
                             if (!ctx.mounted) return;
                             Navigator.pop(ctx);
-                            _loadNews(reset: true);
+                            WidgetsBinding.instance.addPostFrameCallback((_) {
+                              _loadNews(reset: true);
+                            });
                           } catch (e) {
                             if (ctx.mounted) {
                               ErrorHandler.showErrorSnackBar(ctx, e);

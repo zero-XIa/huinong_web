@@ -48,33 +48,9 @@ class _LoginPageState extends State<LoginPage> {
       });
 
       try {
-        final username = _usernameController.text;
-        final password = _passwordController.text;
-
-        // 硬编码管理员账号（仅用于开发测试）
-        if (username == 'admin' && password == '123456') {
-          final adminUser = User(
-            id: 0,
-            username: 'admin',
-            role: 'admin',
-            phone: '13800000000',
-            elderMode: false,
-          );
-          if (mounted) {
-            Provider.of<AppProvider>(context, listen: false).setUser(
-              adminUser,
-              'hardcoded_admin_token',
-            );
-            Navigator.of(context).pushReplacement(
-              MaterialPageRoute(builder: (context) => const AdminNewsPage()),
-            );
-          }
-          return;
-        }
-
         final response = await UserApi.instance.login(
-          username,
-          password,
+          _usernameController.text,
+          _passwordController.text,
         );
 
         final user = User.fromJson(response['user']);

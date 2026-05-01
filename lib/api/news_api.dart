@@ -17,7 +17,7 @@ class NewsApi {
   Future<PaginatedResponse<News>> getNews({int skip = 0, int limit = 10}) async {
     try {
       final response = await DioClient.instance.get<Map<String, dynamic>>(
-        '/news/',
+        '/news',
         queryParameters: {
           'skip': skip,
           'limit': limit,
@@ -39,7 +39,7 @@ class NewsApi {
   Future<News> getNewsDetail(int id) async {
     try {
       final response = await DioClient.instance.get<Map<String, dynamic>>(
-        '/news/$id/',
+        '/news/$id',
       );
       return News.fromJson(response);
     } on ApiException catch (e) {
@@ -60,7 +60,7 @@ class NewsApi {
   }) async {
     try {
       final response = await DioClient.instance.post<Map<String, dynamic>>(
-        '/news/',
+        '/news',
         data: {
           'title': title,
           'content': content,
@@ -93,7 +93,7 @@ class NewsApi {
       if (coverUrl != null) data['cover_url'] = coverUrl;
 
       final response = await DioClient.instance.put<Map<String, dynamic>>(
-        '/news/$id/',
+        '/news/$id',
         data: data,
       );
       if (response == null) {
@@ -112,7 +112,7 @@ class NewsApi {
   /// 管理员 - 删除资讯
   Future<void> deleteNews(int id) async {
     try {
-      await DioClient.instance.delete<void>('/news/$id/');
+      await DioClient.instance.delete<void>('/news/$id');
     } on ApiException catch (e) {
       debugPrint('删除资讯失败: ${e.message}');
       rethrow;
