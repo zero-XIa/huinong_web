@@ -4,6 +4,7 @@ import 'package:huinong_web/pages/admin/admin_news_page.dart';
 import 'package:huinong_web/pages/chat/sessions_page.dart';
 import 'package:huinong_web/pages/consult/consult_page.dart';
 import 'package:huinong_web/pages/home/home_page.dart';
+import 'package:huinong_web/pages/home/elder_home_page.dart';
 import 'package:huinong_web/pages/identify/identify_history_page.dart';
 import 'package:huinong_web/pages/identify/identify_page.dart';
 import 'package:huinong_web/pages/identify/identify_result_page.dart';
@@ -50,53 +51,54 @@ class MyApp extends StatelessWidget {
     if (isElderMode) {
       debugPrint('[MAIN] 构建主题，模式: 适老');
       return baseTheme.copyWith(
+        primaryColor: const Color(0xFF00C853),
         cardTheme: CardThemeData(
-          elevation: 4.0,
+          elevation: 8.0,
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12.0),
+            borderRadius: BorderRadius.circular(20.0),
           ),
-          margin: const EdgeInsets.symmetric(vertical: 12.0),
-          color: const Color(0xFFF5F5DC),
+          margin: const EdgeInsets.symmetric(vertical: 16.0),
+          color: const Color(0xFFFFFFFF),
         ),
         elevatedButtonTheme: ElevatedButtonThemeData(
           style: ButtonStyle(
-            backgroundColor: WidgetStateProperty.all(const Color(0xFF2E7D32)),
+            backgroundColor: WidgetStateProperty.all(const Color(0xFF00C853)),
             foregroundColor: WidgetStateProperty.all(Colors.white),
-            textStyle: WidgetStateProperty.all(const TextStyle(fontSize: 20.0, fontWeight: FontWeight.bold)),
-            padding: WidgetStateProperty.all(const EdgeInsets.symmetric(horizontal: 32.0, vertical: 16.0)),
-            minimumSize: WidgetStateProperty.all(const Size.fromHeight(50)),
+            textStyle: WidgetStateProperty.all(const TextStyle(fontSize: 22.0, fontWeight: FontWeight.bold)),
+            padding: WidgetStateProperty.all(const EdgeInsets.symmetric(horizontal: 40.0, vertical: 20.0)),
+            minimumSize: WidgetStateProperty.all(const Size.fromHeight(64)),
             shape: WidgetStateProperty.all(RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12.0),
+              borderRadius: BorderRadius.circular(20.0),
             )),
           ),
         ),
         textButtonTheme: TextButtonThemeData(
           style: ButtonStyle(
-            textStyle: WidgetStateProperty.all(const TextStyle(inherit: true, fontSize: 18.0)),
-            minimumSize: WidgetStateProperty.all(const Size(80, 50)),
+            textStyle: WidgetStateProperty.all(const TextStyle(inherit: true, fontSize: 22.0)),
+            minimumSize: WidgetStateProperty.all(const Size(80, 64)),
           ),
         ),
         inputDecorationTheme: InputDecorationTheme(
           border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(12.0),
+            borderRadius: BorderRadius.circular(20.0),
             borderSide: BorderSide.none,
           ),
           focusedBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(12.0),
-            borderSide: const BorderSide(color: Color(0xFF2E7D32), width: 2.0),
+            borderRadius: BorderRadius.circular(20.0),
+            borderSide: const BorderSide(color: Color(0xFF00C853), width: 2.0),
           ),
-          contentPadding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 18.0),
+          contentPadding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 22.0),
           filled: true,
-          fillColor: const Color(0xFFF5F5DC),
-          labelStyle: const TextStyle(fontSize: 18.0, color: Color(0xFF333333)),
+          fillColor: const Color(0xFFF5F5F5),
+          labelStyle: const TextStyle(fontSize: 22.0, color: Color(0xFF000000)),
         ),
         textTheme: const TextTheme(
-          bodyLarge: TextStyle(fontSize: 18.0, color: Color(0xFF333333)),
-          bodyMedium: TextStyle(fontSize: 18.0, color: Color(0xFF333333)),
-          titleLarge: TextStyle(fontSize: 22.0, fontWeight: FontWeight.bold, color: Color(0xFF333333)),
-          titleMedium: TextStyle(fontSize: 20.0, fontWeight: FontWeight.bold, color: Color(0xFF333333)),
+          bodyLarge: TextStyle(fontSize: 22.0, color: Color(0xFF000000)),
+          bodyMedium: TextStyle(fontSize: 22.0, color: Color(0xFF000000)),
+          titleLarge: TextStyle(fontSize: 28.0, fontWeight: FontWeight.bold, color: Color(0xFF000000)),
+          titleMedium: TextStyle(fontSize: 24.0, fontWeight: FontWeight.bold, color: Color(0xFF000000)),
         ),
-        scaffoldBackgroundColor: const Color(0xFFF5F5DC),
+        scaffoldBackgroundColor: const Color(0xFFFFFFFF),
       );
     }
 
@@ -193,6 +195,11 @@ class _MainScreenState extends State<MainScreen> {
     const MinePage(),
   ];
 
+  final List<Widget> _elderPages = [
+    const ConsultPage(),
+    const MinePage(),
+  ];
+
   void _onItemTapped(int index) {
     setState(() {
       _selectedIndex = index;
@@ -201,6 +208,44 @@ class _MainScreenState extends State<MainScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final isElderMode = context.watch<AppProvider>().isElderlyMode;
+
+    if (isElderMode) {
+      final index = _selectedIndex.clamp(0, 2);
+      return Scaffold(
+        body: index == 0
+            ? ElderHomePage(
+                onNavigate: (tabIndex) {
+                  setState(() {
+                    _selectedIndex = tabIndex;
+                  });
+                },
+              )
+            : _elderPages[index - 1],
+        bottomNavigationBar: BottomNavigationBar(
+          items: const <BottomNavigationBarItem>[
+            BottomNavigationBarItem(
+              icon: Icon(Icons.home, size: 36),
+              label: '首页',
+            ),
+            BottomNavigationBarItem(
+              icon: Icon(Icons.chat, size: 36),
+              label: '问诊',
+            ),
+            BottomNavigationBarItem(
+              icon: Icon(Icons.person, size: 36),
+              label: '我的',
+            ),
+          ],
+          currentIndex: index,
+          selectedItemColor: const Color(0xFF00C853),
+          selectedLabelStyle: const TextStyle(fontSize: 18),
+          unselectedLabelStyle: const TextStyle(fontSize: 18),
+          onTap: _onItemTapped,
+        ),
+      );
+    }
+
     return Scaffold(
       body: _pages[_selectedIndex],
       bottomNavigationBar: BottomNavigationBar(
