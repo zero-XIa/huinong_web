@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:huinong_web/main.dart';
 import 'package:huinong_web/models/user_model.dart';
+import 'package:huinong_web/pages/admin/admin_news_page.dart';
 import 'package:huinong_web/pages/register/register_page.dart';
 import 'package:provider/provider.dart';
 import 'package:huinong_web/api/user_api.dart';
@@ -47,9 +48,33 @@ class _LoginPageState extends State<LoginPage> {
       });
 
       try {
+        final username = _usernameController.text;
+        final password = _passwordController.text;
+
+        // 硬编码管理员账号（仅用于开发测试）
+        if (username == 'admin' && password == '123456') {
+          final adminUser = User(
+            id: 0,
+            username: 'admin',
+            role: 'admin',
+            phone: '13800000000',
+            elderMode: false,
+          );
+          if (mounted) {
+            Provider.of<AppProvider>(context, listen: false).setUser(
+              adminUser,
+              'hardcoded_admin_token',
+            );
+            Navigator.of(context).pushReplacement(
+              MaterialPageRoute(builder: (context) => const AdminNewsPage()),
+            );
+          }
+          return;
+        }
+
         final response = await UserApi.instance.login(
-          _usernameController.text,
-          _passwordController.text,
+          username,
+          password,
         );
 
         final user = User.fromJson(response['user']);
@@ -60,10 +85,16 @@ class _LoginPageState extends State<LoginPage> {
 
         if (mounted) {
           Provider.of<AppProvider>(context, listen: false).setUser(user, token);
-          debugPrint('[LOGIN] setUser 调用完成');
-          Navigator.of(context).pushReplacement(
-            MaterialPageRoute(builder: (context) => const MainScreen()),
-          );
+          debugPrint('[LOGIN] setUser 调用完成, role: ${user.role}');
+          if (user.role == 'admin') {
+            Navigator.of(context).pushReplacement(
+              MaterialPageRoute(builder: (context) => const AdminNewsPage()),
+            );
+          } else {
+            Navigator.of(context).pushReplacement(
+              MaterialPageRoute(builder: (context) => const MainScreen()),
+            );
+          }
         }
       } catch (e) {
         if (mounted) {

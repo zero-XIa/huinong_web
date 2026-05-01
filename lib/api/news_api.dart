@@ -50,4 +50,75 @@ class NewsApi {
       rethrow;
     }
   }
+
+  /// 管理员 - 创建资讯
+  Future<News> createNews({
+    required String title,
+    required String content,
+    String? category,
+    String? coverUrl,
+  }) async {
+    try {
+      final response = await DioClient.instance.post<Map<String, dynamic>>(
+        '/news/',
+        data: {
+          'title': title,
+          'content': content,
+          if (category != null && category.isNotEmpty) 'category': category,
+          if (coverUrl != null && coverUrl.isNotEmpty) 'cover_url': coverUrl,
+        },
+      );
+      return News.fromJson(response);
+    } on ApiException catch (e) {
+      debugPrint('创建资讯失败: ${e.message}');
+      rethrow;
+    } catch (e) {
+      debugPrint('创建资讯时发生未知错误: $e');
+      rethrow;
+    }
+  }
+
+  /// 管理员 - 更新资讯
+  Future<News> updateNews(int id, {
+    String? title,
+    String? content,
+    String? category,
+    String? coverUrl,
+  }) async {
+    try {
+      final data = <String, dynamic>{};
+      if (title != null) data['title'] = title;
+      if (content != null) data['content'] = content;
+      if (category != null) data['category'] = category;
+      if (coverUrl != null) data['cover_url'] = coverUrl;
+
+      final response = await DioClient.instance.put<Map<String, dynamic>>(
+        '/news/$id/',
+        data: data,
+      );
+      if (response == null) {
+        throw ApiException('更新资讯失败：响应为空');
+      }
+      return News.fromJson(response);
+    } on ApiException catch (e) {
+      debugPrint('更新资讯失败: ${e.message}');
+      rethrow;
+    } catch (e) {
+      debugPrint('更新资讯时发生未知错误: $e');
+      rethrow;
+    }
+  }
+
+  /// 管理员 - 删除资讯
+  Future<void> deleteNews(int id) async {
+    try {
+      await DioClient.instance.delete<void>('/news/$id/');
+    } on ApiException catch (e) {
+      debugPrint('删除资讯失败: ${e.message}');
+      rethrow;
+    } catch (e) {
+      debugPrint('删除资讯时发生未知错误: $e');
+      rethrow;
+    }
+  }
 }

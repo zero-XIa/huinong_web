@@ -34,8 +34,12 @@ class User {
 
   /// 长辈模式标记
   /// 对应后端字段: `elder_mode` (Boolean, default=False)
-  /// 用于判断是否启用长辈界面，这是您提到的“长辈标记字段”。
+  /// 用于判断是否启用长辈界面，这是您提到的"长辈标记字段"。
   final bool elderMode;
+
+  /// 用户角色
+  /// 对应后端字段: `role` (String, default="user")
+  final String role;
 
   /// 创建时间
   /// 对应后端字段: `create_time` (DateTime, server_default=func.now())
@@ -46,7 +50,8 @@ class User {
     required this.username,
     this.password,
     this.phone,
-    this.elderMode = false, // 默认值为 false
+    this.elderMode = false,
+    this.role = 'user',
     this.createTime,
   });
 
@@ -59,7 +64,8 @@ class User {
       username: json['username'] as String,
       password: json['password'] as String?,
       phone: json['phone'] as String?,
-      elderMode: json['elder_mode'] as bool? ?? false, // 后端默认值，前端也给个默认值
+      elderMode: json['elder_mode'] as bool? ?? false,
+      role: json['role'] as String? ?? 'user',
       createTime: json['create_time'] != null
           ? DateTime.parse(json['create_time'] as String)
           : null,
@@ -76,7 +82,8 @@ class User {
       'password': password,
       'phone': phone,
       'elder_mode': elderMode,
-      'create_time': createTime?.toIso8601String(), // 转换为 ISO 8601 字符串
+      'role': role,
+      'create_time': createTime?.toIso8601String(),
     };
   }
 
@@ -94,6 +101,6 @@ class User {
 
   @override
   String toString() {
-    return 'User(id: $id, username: $username, phone: $phone, elderMode: $elderMode, createTime: $createTime)';
+    return 'User(id: $id, username: $username, phone: $phone, elderMode: $elderMode, role: $role, createTime: $createTime)';
   }
 }

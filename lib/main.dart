@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:huinong_web/api/dio_client.dart';
+import 'package:huinong_web/pages/admin/admin_news_page.dart';
 import 'package:huinong_web/pages/chat/sessions_page.dart';
 import 'package:huinong_web/pages/consult/consult_page.dart';
 import 'package:huinong_web/pages/home/home_page.dart';
@@ -160,9 +161,14 @@ class MyApp extends StatelessWidget {
                       : null,
                 ),
             '/chat/sessions': (context) => const SessionsPage(),
+            '/admin': (context) => const AdminNewsPage(),
           },
           theme: _buildTheme(appProvider.isElderlyMode),
-          home: appProvider.isLoggedIn ? const MainScreen() : const LoginPage(),
+          home: !appProvider.isLoggedIn
+              ? const LoginPage()
+              : appProvider.currentUser?.role == 'admin'
+                  ? const AdminNewsPage()
+                  : const MainScreen(),
         );
       },
     );
