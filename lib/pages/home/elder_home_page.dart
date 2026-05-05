@@ -62,7 +62,7 @@ class ElderHomePage extends StatelessWidget {
     return Scaffold(
       appBar: AppBar(
         title: const Text(
-          '🌾 慧农长辈版',
+          '慧农长辈版',
           style: TextStyle(
             fontSize: 28,
             fontWeight: FontWeight.bold,

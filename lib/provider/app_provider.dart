@@ -1,9 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:huinong_web/api/user_api.dart';
-import 'package:huinong_web/main.dart'; // 导入全局导航键
+import 'package:huinong_web/main.dart';
 import 'package:huinong_web/models/user_model.dart';
-import 'package:huinong_web/pages/login/login_page.dart'; // 导入 LoginPage
-import 'package:huinong_web/utils/error_handler.dart';
 import 'package:huinong_web/utils/secure_storage.dart';
 
 /// 全局应用状态管理
@@ -11,11 +9,13 @@ class AppProvider with ChangeNotifier {
   bool _isElderlyMode = false;
   User? _currentUser;
   String? _accessToken;
+  bool _isLoggingOut = false;
 
   bool get isElderlyMode => _isElderlyMode;
   User? get currentUser => _currentUser;
   String? get accessToken => _accessToken;
   bool get isLoggedIn => _currentUser != null && _accessToken != null;
+  bool get isLoggingOut => _isLoggingOut;
 
   AppProvider() {
     loadElderlyMode();
@@ -34,38 +34,28 @@ class AppProvider with ChangeNotifier {
     notifyListeners(); // 通知所有监听者更新 UI
   }
 
-  // 更新长辈模式（同步后端）
+  // 更新长辈模式（仅本地，不同步后端，避免频繁写库）
   Future<void> updateElderMode(bool value, BuildContext context) async {
-    final oldValue = _isElderlyMode;
-    debugPrint('[APP] updateElderMode 被调用, oldValue: $oldValue, newValue: $value');
-    
-    // 乐观更新
-    debugPrint('[APP] 乐观更新前 _isElderlyMode = $_isElderlyMode');
+    if (_isElderlyMode == value) return;
     _isElderlyMode = value;
-    debugPrint('[APP] 乐观更新后 _isElderlyMode = $_isElderlyMode');
-    debugPrint('[APP] 准备调用 notifyListeners() (乐观更新)');
+    await SecureStorage.instance.saveElderMode(value);
     notifyListeners();
+  }
 
+  // 将当前长辈模式单向同步到服务端
+  // 仅在登录(setUser)和登出(logout)时调用，避免频繁写库
+  Future<void> _syncElderModeToServer() async {
+    if (_currentUser == null || _accessToken == null) {
+      debugPrint('[APP] _syncElderModeToServer: 未登录，跳过同步');
+      return;
+    }
+    debugPrint('[APP] 开始同步长辈模式到服务端, elderMode: $_isElderlyMode, token: ${_accessToken!.substring(0, 10)}...');
     try {
-      debugPrint('[APP] 准备调用 UserApi.updateUser(elderMode: $value)');
-      final updatedUser = await UserApi.instance.updateUser(elderMode: value);
-      debugPrint('[APP] API 调用成功, 返回 elderMode: ${updatedUser.elderMode}');
+      final updatedUser = await UserApi.instance.updateUser(elderMode: _isElderlyMode);
       _currentUser = updatedUser;
-      await SecureStorage.instance.saveElderMode(value);
-      debugPrint('[APP] 准备调用 notifyListeners() (成功)');
-      notifyListeners();
-      debugPrint('[APP] updateElderMode 成功完成');
+      debugPrint('[APP] 长辈模式同步成功, 服务端返回 elderMode: ${updatedUser.elderMode}');
     } catch (e) {
-      debugPrint('[APP] API 调用失败: $e');
-      debugPrint('[APP] 回滚 _isElderlyMode 从 $value 到 $oldValue');
-      _isElderlyMode = oldValue;
-      debugPrint('[APP] 准备调用 notifyListeners() (回滚)');
-      notifyListeners();
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (ScaffoldMessenger.maybeOf(context) != null) {
-          ErrorHandler.showErrorSnackBar(context, e);
-        }
-      });
+      debugPrint('[APP] 同步长辈模式到服务端失败: $e');
     }
   }
 
@@ -84,7 +74,7 @@ class AppProvider with ChangeNotifier {
 
   // 设置用户和 token
   Future<void> setUser(User user, String token) async {
-    debugPrint('[APP] setUser 被调用, elderMode: ${user.elderMode}, token 已获取');
+    debugPrint('[APP] setUser 被调用, 服务端 elderMode: ${user.elderMode}, token 已获取');
     
     _currentUser = user;
     _accessToken = token;
@@ -95,11 +85,19 @@ class AppProvider with ChangeNotifier {
       await SecureStorage.instance.saveUsername(user.username);
     }
     
-    debugPrint('[APP] 更新前 _isElderlyMode = $_isElderlyMode');
-    await SecureStorage.instance.saveElderMode(user.elderMode);
-    _isElderlyMode = user.elderMode;
-    debugPrint('[APP] 更新后 _isElderlyMode = $_isElderlyMode');
-    
+    // 登录时合并本地与服务端的长辈模式值：
+    // 用户登录页的选择（本地）优先，服务端历史值兜底恢复，使用 OR 确保不丢失任一方的 true
+    final localElderMode = _isElderlyMode;
+    _isElderlyMode = _isElderlyMode || user.elderMode;
+    await SecureStorage.instance.saveElderMode(_isElderlyMode);
+    debugPrint('[APP] 登录时 elderMode 合并: 本地=$localElderMode, 服务端=${user.elderMode}, 结果=$_isElderlyMode');
+
+    // 如果本地值与服务端不一致，将用户选择同步到服务端
+    if (_isElderlyMode != user.elderMode) {
+      debugPrint('[APP] 本地与服务端 elderMode 不一致，同步到服务端');
+      _syncElderModeToServer();
+    }
+
     debugPrint('[APP] 准备调用 notifyListeners()');
     notifyListeners();
     debugPrint('[APP] setUser 完成');
@@ -116,13 +114,12 @@ class AppProvider with ChangeNotifier {
     try {
       debugPrint('[APP] checkLoginStatus: 准备调用 getCurrentUser()');
       final user = await UserApi.instance.getCurrentUser();
-      debugPrint('[APP] checkLoginStatus 获取用户, elderMode: ${user.elderMode}');
+      debugPrint('[APP] checkLoginStatus 获取用户, 服务端 elderMode: ${user.elderMode}');
       
       _currentUser = user;
       _accessToken = token;
-      debugPrint('[APP] 更新前 _isElderlyMode = $_isElderlyMode');
-      _isElderlyMode = user.elderMode;
-      debugPrint('[APP] 更新后 _isElderlyMode = $_isElderlyMode');
+      // 保持本地 SecureStorage 的长辈模式值，不覆盖
+      debugPrint('[APP] checkLoginStatus 保持本地 elderMode = $_isElderlyMode');
       
       debugPrint('[APP] 准备调用 notifyListeners()');
       notifyListeners();
@@ -139,19 +136,19 @@ class AppProvider with ChangeNotifier {
 
   // 退出登录
   Future<void> logout() async {
+    _isLoggingOut = true;
+    // 登出前将当前长辈模式同步到服务端
+    await _syncElderModeToServer();
+    
     _currentUser = null;
     _accessToken = null;
     
-    // 清除安全存储中的数据
     await SecureStorage.instance.clearAll();
     await resetElderlyMode();
     
-    // 先跳转登录页，再通知监听者
+    // _AppShell 已通过 notifyListeners() 重建并显示 LoginPage，仅需 pop 回到根路由
     if (navigatorKey.currentState != null) {
-      navigatorKey.currentState!.pushAndRemoveUntil(
-        MaterialPageRoute(builder: (context) => const LoginPage()),
-        (route) => false,
-      );
+      navigatorKey.currentState!.popUntil((route) => route.isFirst);
     }
     
     notifyListeners();

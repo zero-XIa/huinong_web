@@ -302,21 +302,22 @@ class _SessionsPageState extends State<SessionsPage> {
   }
 
   Widget _buildEmptyState() {
-    return const Center(
+    final isElder = Provider.of<AppProvider>(context).isElderlyMode;
+    return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           Icon(
             Icons.chat_bubble_outline,
-            size: 60,
-            color: Color(0xFF9E9E9E),
+            size: isElder ? 80 : 60,
+            color: const Color(0xFF9E9E9E),
           ),
-          SizedBox(height: 16),
+          SizedBox(height: isElder ? 24 : 16),
           Text(
             '暂无会话',
             style: TextStyle(
-              fontSize: 14.0,
-              color: Color(0xFF616161),
+              fontSize: isElder ? 20 : 14,
+              color: const Color(0xFF616161),
             ),
           ),
         ],

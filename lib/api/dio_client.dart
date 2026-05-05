@@ -261,9 +261,11 @@ class AppInterceptor extends Interceptor {
     debugPrint('错误 [${err.requestOptions.method}] => PATH: ${err.requestOptions.path} ERROR: ${err.message}');
     
     // 处理 401 错误
+    // 仅在用户已登录且不在登出流程中时才触发自动登出，防止递归调用
     if (err.response?.statusCode == 401) {
-      // 调用 AppProvider.logout() 并跳转登录页
-      if (DioClient._appProvider != null) {
+      if (DioClient._appProvider != null
+          && DioClient._appProvider!.isLoggedIn
+          && !DioClient._appProvider!.isLoggingOut) {
         DioClient._appProvider!.logout();
       }
     }

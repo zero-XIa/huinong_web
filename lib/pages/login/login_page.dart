@@ -1,7 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:huinong_web/main.dart';
 import 'package:huinong_web/models/user_model.dart';
-import 'package:huinong_web/pages/admin/admin_news_page.dart';
 import 'package:huinong_web/pages/register/register_page.dart';
 import 'package:provider/provider.dart';
 import 'package:huinong_web/api/user_api.dart';
@@ -62,15 +60,8 @@ class _LoginPageState extends State<LoginPage> {
         if (mounted) {
           Provider.of<AppProvider>(context, listen: false).setUser(user, token);
           debugPrint('[LOGIN] setUser 调用完成, role: ${user.role}');
-          if (user.role == 'admin') {
-            Navigator.of(context).pushReplacement(
-              MaterialPageRoute(builder: (context) => const AdminNewsPage()),
-            );
-          } else {
-            Navigator.of(context).pushReplacement(
-              MaterialPageRoute(builder: (context) => const MainScreen()),
-            );
-          }
+          // _AppShell 在 setUser() 的 notifyListeners() 后自然重建，
+          // 根据 isLoggedIn/isAdmin 决定显示 MainScreen 或 AdminNewsPage
         }
       } catch (e) {
         if (mounted) {
@@ -161,9 +152,8 @@ class _LoginPageState extends State<LoginPage> {
                 const SizedBox(height: 16),
                 TextButton(
                   onPressed: () {
-                    Navigator.of(context).pushAndRemoveUntil(
+                    Navigator.of(context).push(
                       MaterialPageRoute(builder: (context) => const RegisterPage()),
-                      ModalRoute.withName('/'),
                     );
                   },
                   child: const Text('没有账号？立即注册'),

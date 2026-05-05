@@ -175,48 +175,49 @@ class _NewsDetailPageState extends State<NewsDetailPage> {
 
   Widget _buildMarkdownContent(String content, bool isElderMode) {
     final double baseFontSize = isElderMode ? 20 : 16;
+    final textColor = Theme.of(context).textTheme.bodyLarge?.color ?? Colors.black87;
     return MarkdownBody(
       data: content,
       styleSheet: MarkdownStyleSheet(
         p: TextStyle(
           fontSize: baseFontSize,
           height: 1.8,
-          color: Colors.black87,
+          color: textColor,
         ),
         h1: TextStyle(
           fontSize: baseFontSize * 1.5,
           fontWeight: FontWeight.bold,
-          color: Colors.black87,
+          color: textColor,
           height: 1.4,
         ),
         h2: TextStyle(
           fontSize: baseFontSize * 1.4,
           fontWeight: FontWeight.bold,
-          color: Colors.black87,
+          color: textColor,
           height: 1.4,
         ),
         h3: TextStyle(
           fontSize: baseFontSize * 1.3,
           fontWeight: FontWeight.bold,
-          color: Colors.black87,
+          color: textColor,
           height: 1.4,
         ),
         h4: TextStyle(
           fontSize: baseFontSize * 1.2,
           fontWeight: FontWeight.bold,
-          color: Colors.black87,
+          color: textColor,
           height: 1.4,
         ),
         h5: TextStyle(
           fontSize: baseFontSize * 1.1,
           fontWeight: FontWeight.bold,
-          color: Colors.black87,
+          color: textColor,
           height: 1.4,
         ),
         h6: TextStyle(
           fontSize: baseFontSize,
           fontWeight: FontWeight.bold,
-          color: Colors.black87,
+          color: textColor,
           height: 1.4,
         ),
         code: TextStyle(
@@ -226,7 +227,7 @@ class _NewsDetailPageState extends State<NewsDetailPage> {
         ),
         listBullet: TextStyle(
           fontSize: baseFontSize,
-          color: Colors.black87,
+          color: textColor,
           height: 1.8,
         ),
         blockquote: TextStyle(
@@ -239,12 +240,13 @@ class _NewsDetailPageState extends State<NewsDetailPage> {
   }
 
   Widget _buildPlainText(String content, bool isElderMode) {
+    final textColor = Theme.of(context).textTheme.bodyLarge?.color ?? Colors.black87;
     return SelectableText(
       content,
       style: TextStyle(
         fontSize: isElderMode ? 20 : 16,
         height: 1.8,
-        color: Colors.black87,
+        color: textColor,
       ),
     );
   }

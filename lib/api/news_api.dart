@@ -64,6 +64,7 @@ class NewsApi {
         data: {
           'title': title,
           'content': content,
+          'publish_time': DateTime.now().toIso8601String(),
           if (category != null && category.isNotEmpty) 'category': category,
           if (coverUrl != null && coverUrl.isNotEmpty) 'cover_url': coverUrl,
         },

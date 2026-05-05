@@ -56,6 +56,21 @@ class News {
     this.viewCount = 0,
   });
 
+  static DateTime? _parseDateTime(dynamic value) {
+    if (value == null) return null;
+    if (value is String) {
+      try {
+        return DateTime.parse(value);
+      } catch (_) {
+        return null;
+      }
+    }
+    if (value is int) {
+      return DateTime.fromMillisecondsSinceEpoch(value * 1000);
+    }
+    return null;
+  }
+
   /// 从 JSON 数据创建 News 对象的工厂构造函数。
   factory News.fromJson(Map<String, dynamic> json) {
     return News(
@@ -64,9 +79,7 @@ class News {
       content: json['content'] as String,
       category: json['category'] as String?,
       coverUrl: json['cover_url'] as String?,
-      publishTime: json['publish_time'] != null
-          ? DateTime.parse(json['publish_time'] as String)
-          : null,
+      publishTime: _parseDateTime(json['publish_time']),
       viewCount: json['view_count'] as int? ?? 0,
     );
   }

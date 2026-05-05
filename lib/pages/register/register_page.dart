@@ -1,7 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:huinong_web/api/user_api.dart';
-import 'package:huinong_web/pages/login/login_page.dart';
 import 'package:provider/provider.dart';
 import 'package:huinong_web/provider/app_provider.dart';
 
@@ -76,39 +75,51 @@ class _RegisterPageState extends State<RegisterPage> {
       );
 
       if (mounted) {
-        await showDialog(
+        final username = user.username;
+        showDialog(
           context: context,
-          builder: (context) => AlertDialog(
-            title: Text('注册成功', style: TextStyle(fontSize: isElderMode ? 22 : 18, fontWeight: FontWeight.bold)),
-            content: RichText(
-              text: TextSpan(
-                style: TextStyle(
-                  fontSize: isElderMode ? 20 : 16,
-                  color: Colors.black87,
-                  height: 1.5,
-                ),
-                children: [
-                  const TextSpan(text: '注册成功！您的账号 '),
-                  TextSpan(
-                    text: user.username,
-                    style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: isElderMode ? 22 : 18,
-                      color: Theme.of(context).primaryColor,
-                    ),
+          builder: (dialogContext) {
+            // 2秒后自动关闭弹窗
+            Future.delayed(const Duration(seconds: 2), () {
+              if (dialogContext.mounted && Navigator.of(dialogContext).canPop()) {
+                Navigator.of(dialogContext).pop();
+              }
+            });
+            return AlertDialog(
+              title: Text('注册成功', style: TextStyle(fontSize: isElderMode ? 22 : 18, fontWeight: FontWeight.bold)),
+              content: RichText(
+                text: TextSpan(
+                  style: TextStyle(
+                    fontSize: isElderMode ? 20 : 16,
+                    color: Colors.black87,
+                    height: 1.5,
                   ),
-                  const TextSpan(text: ' 已创建，跳转到登录页'),
-                ],
+                  children: [
+                    const TextSpan(text: '注册成功！您的账号 '),
+                    TextSpan(
+                      text: username,
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: isElderMode ? 22 : 18,
+                        color: Theme.of(context).primaryColor,
+                      ),
+                    ),
+                    const TextSpan(text: ' 已创建，即将跳转到登录页'),
+                  ],
+                ),
               ),
-            ),
-          ),
-        );
-
-        Timer(const Duration(seconds: 3), () {
-          if (mounted) {
-            Navigator.of(context).pushReplacement(
-              MaterialPageRoute(builder: (context) => LoginPage(username: user.username)),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.of(dialogContext).pop(),
+                  child: Text('确定', style: TextStyle(fontSize: isElderMode ? 19 : 16)),
+                ),
+              ],
             );
+          },
+        ).then((_) {
+          // 弹窗关闭后回到登录页，_AppShell 自然显示 LoginPage
+          if (mounted) {
+            Navigator.of(context).pop();
           }
         });
       }
@@ -157,7 +168,6 @@ class _RegisterPageState extends State<RegisterPage> {
 
     return Scaffold(
       appBar: AppBar(
-        automaticallyImplyLeading: false,  // 隐藏返回箭头
         title: Text('注册', style: TextStyle(fontSize: isElderMode ? 22 : 18)),
         actions: [
           Switch(
@@ -250,9 +260,7 @@ class _RegisterPageState extends State<RegisterPage> {
                 SizedBox(height: elementSpacing),
                 TextButton(
                   onPressed: () {
-                    Navigator.of(context).pushReplacement(
-                      MaterialPageRoute(builder: (context) => const LoginPage()),
-                    );
+                    Navigator.of(context).pop();
                   },
                   child: Text('已有账号？立即登录', style: TextStyle(fontSize: agreementFontSize)),
                 ),

@@ -27,7 +27,10 @@ class _IdentifyHistoryPageState extends State<IdentifyHistoryPage> {
   void initState() {
     super.initState();
     _scrollController.addListener(_onScroll);
-    _loadHistory();
+    final isLoggedIn = context.read<AppProvider>().isLoggedIn;
+    if (isLoggedIn) {
+      _loadHistory();
+    }
   }
 
   @override

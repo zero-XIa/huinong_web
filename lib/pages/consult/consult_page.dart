@@ -541,20 +541,20 @@ class _ConsultPageState extends State<ConsultPage> {
                   focusNode: _focusNode,
                   maxLines: null,
                   keyboardType: TextInputType.multiline,
-                  style: const TextStyle(fontSize: 14),
-                  decoration: const InputDecoration(
+                  style: TextStyle(fontSize: isElderMode ? 18 : 14),
+                  decoration: InputDecoration(
                     hintText: '请输入您的问题...',
                     hintStyle: TextStyle(
-                      fontSize: 14.0,
-                      color: Color(0xFF9E9E9E),
+                      fontSize: isElderMode ? 18 : 14,
+                      color: const Color(0xFF9E9E9E),
                     ),
-                    border: OutlineInputBorder(
+                    border: const OutlineInputBorder(
                       borderRadius: BorderRadius.all(Radius.circular(20)),
                       borderSide: BorderSide.none,
                     ),
                     filled: true,
-                    fillColor: Color(0xFFF5F5F5),
-                    contentPadding: EdgeInsets.symmetric(
+                    fillColor: const Color(0xFFF5F5F5),
+                    contentPadding: const EdgeInsets.symmetric(
                       horizontal: 16,
                       vertical: 8,
                     ),
@@ -626,21 +626,21 @@ class _ConsultPageState extends State<ConsultPage> {
             child: _isLoadingHistory
               ? const Center(child: CircularProgressIndicator())
               : _messages.isEmpty
-                ? const Center(
+                ? Center(
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
                         Icon(
                           Icons.chat_bubble_outline,
-                          size: 60,
-                          color: Color(0xFF9E9E9E),
+                          size: isElderMode ? 80 : 60,
+                          color: const Color(0xFF9E9E9E),
                         ),
-                        SizedBox(height: 16),
+                        SizedBox(height: isElderMode ? 24 : 16),
                         Text(
                           '暂无消息',
                           style: TextStyle(
-                            fontSize: 14.0,
-                            color: Color(0xFF616161),
+                            fontSize: isElderMode ? 20 : 14,
+                            color: const Color(0xFF616161),
                           ),
                         ),
                       ],

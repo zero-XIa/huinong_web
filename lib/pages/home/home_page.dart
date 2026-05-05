@@ -23,7 +23,10 @@ class _HomePageState extends State<HomePage> {
   @override
   void initState() {
     super.initState();
-    _loadMoreNews();
+    final isLoggedIn = context.read<AppProvider>().isLoggedIn;
+    if (isLoggedIn) {
+      _loadMoreNews();
+    }
     _scrollController.addListener(() {
       if (_scrollController.position.pixels == _scrollController.position.maxScrollExtent && !_isLoading) {
         _loadMoreNews();

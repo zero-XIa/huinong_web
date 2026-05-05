@@ -42,7 +42,7 @@ void main() async {
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
 
-  ThemeData _buildTheme(bool isElderMode) {
+  static ThemeData _buildTheme(bool isElderMode) {
     final baseTheme = ThemeData(
       primarySwatch: Colors.green,
       visualDensity: VisualDensity.adaptivePlatformDensity,
@@ -74,7 +74,7 @@ class MyApp extends StatelessWidget {
         ),
         textButtonTheme: TextButtonThemeData(
           style: ButtonStyle(
-            textStyle: WidgetStateProperty.all(const TextStyle(inherit: true, fontSize: 22.0)),
+            textStyle: WidgetStateProperty.all(const TextStyle(fontSize: 22.0)),
             minimumSize: WidgetStateProperty.all(const Size(80, 64)),
           ),
         ),
@@ -148,31 +148,72 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Consumer<AppProvider>(
-      builder: (ctx, appProvider, _) {
-        debugPrint('[MAIN] 主题重建，当前 isElderlyMode: ${appProvider.isElderlyMode}');
-        return MaterialApp(
-          title: '慧农 App',
-          navigatorKey: navigatorKey,
-          routes: {
-            '/identify/result': (context) => const IdentifyResultPage(),
-            '/identify/history': (context) => const IdentifyHistoryPage(),
-            '/chat': (context) => ConsultPage(
-                  initialText: ModalRoute.of(context)?.settings.arguments is ChatPageArguments
-                      ? (ModalRoute.of(context)!.settings.arguments as ChatPageArguments).initialText
-                      : null,
-                ),
-            '/chat/sessions': (context) => const SessionsPage(),
-            '/admin': (context) => const AdminNewsPage(),
-          },
-          theme: _buildTheme(appProvider.isElderlyMode),
-          home: !appProvider.isLoggedIn
-              ? const LoginPage()
-              : appProvider.currentUser?.role == 'admin'
-                  ? const AdminNewsPage()
-                  : const MainScreen(),
-        );
+    // MaterialApp 在 MyApp.build 中只创建一次，通过 _AppShell 下沉可变逻辑，
+    // 避免 MaterialApp 重建导致 navigatorKey 的 GlobalKey 冲突。
+    return MaterialApp(
+      title: '慧农 App',
+      navigatorKey: navigatorKey,
+      routes: {
+        '/identify/result': (context) => const IdentifyResultPage(),
+        '/identify/history': (context) => const IdentifyHistoryPage(),
+        '/chat': (context) => ConsultPage(
+              initialText: ModalRoute.of(context)?.settings.arguments is ChatPageArguments
+                  ? _extractChatPageArguments(context)
+                  : null,
+            ),
+        '/chat/sessions': (context) => const SessionsPage(),
+        '/admin': (context) => const AdminNewsPage(),
       },
+      theme: _buildTheme(false),
+      home: const _AppShell(),
+    );
+  }
+}
+
+/// 提取 ChatPageArguments 中的 initialText 参数
+/// 实现逻辑：从 ModalRoute 的 settings.arguments 中安全读取 initialText
+dynamic _extractChatPageArguments(BuildContext context) {
+  final args = ModalRoute.of(context)?.settings.arguments;
+  if (args is ChatPageArguments) {
+    return (args).initialText;
+  }
+  return null;
+}
+
+/// 应用壳层组件，负责监听 AppProvider 状态变化并决定当前显示的页面和主题。
+///
+/// 实现逻辑：
+/// 1. 使用 context.select 精确定向监听 isLoggedIn、isAdmin、isElderlyMode 三个状态。
+/// 2. MaterialApp 本身永不重建，_AppShell 的变化只在壳层内发生，不会触发 navigatorKey 冲突。
+/// 3. 长辈模式变化时通过 Theme 包装切换主题，登录状态变化时切换 home 页面。
+class _AppShell extends StatelessWidget {
+  const _AppShell();
+
+  @override
+  Widget build(BuildContext context) {
+    // 精确定向监听：只监听各自关心的状态片段，避免无关状态变化触发不必要的重建
+    final isLoggedIn = context.select<AppProvider, bool>((p) => p.isLoggedIn);
+    final isAdmin = context.select<AppProvider, bool>((p) => p.currentUser?.role == 'admin');
+    final isElder = context.select<AppProvider, bool>((p) => p.isElderlyMode);
+
+    debugPrint('[SHELL] 重建, isLoggedIn: $isLoggedIn, isAdmin: $isAdmin, isElder: $isElder');
+
+    // 根据登录状态和角色决定根页面
+    Widget page;
+    if (!isLoggedIn) {
+      page = const LoginPage();
+    } else if (isAdmin) {
+      page = const AdminNewsPage();
+    } else {
+      page = const MainScreen();
+    }
+
+    // 长辈模式通过 Theme 包装注入，不重建 MaterialApp
+    // 使用 ValueKey 确保主题切换时直接替换 widget，避免 AnimatedTheme 插值
+    return Theme(
+      key: ValueKey('theme_$isElder'),
+      data: MyApp._buildTheme(isElder),
+      child: page,
     );
   }
 }
@@ -187,17 +228,13 @@ class MainScreen extends StatefulWidget {
 
 class _MainScreenState extends State<MainScreen> {
   int _selectedIndex = 0;
+  bool _prevElderMode = false;
 
-  final List<Widget> _pages = [
-    const HomePage(),
-    const IdentifyPage(),
-    const ConsultPage(),
-    const MinePage(),
-  ];
-
-  final List<Widget> _elderPages = [
-    const ConsultPage(),
-    const MinePage(),
+  final List<Widget Function()> _pageBuilders = [
+    () => const HomePage(),
+    () => const IdentifyPage(),
+    () => const ConsultPage(),
+    () => const MinePage(),
   ];
 
   void _onItemTapped(int index) {
@@ -210,6 +247,14 @@ class _MainScreenState extends State<MainScreen> {
   Widget build(BuildContext context) {
     final isElderMode = context.watch<AppProvider>().isElderlyMode;
 
+    // 仅在长辈模式 OFF->ON 的瞬间跳转到首页，避免后续点击"我的"Tab 被反复重置
+    if (isElderMode && !_prevElderMode) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) setState(() => _selectedIndex = 0);
+      });
+    }
+    _prevElderMode = isElderMode;
+
     if (isElderMode) {
       final index = _selectedIndex.clamp(0, 2);
       return Scaffold(
@@ -221,7 +266,9 @@ class _MainScreenState extends State<MainScreen> {
                   });
                 },
               )
-            : _elderPages[index - 1],
+            : index == 1
+                ? const ConsultPage(key: ValueKey('elder_consult'))
+                : const MinePage(key: ValueKey('elder_mine')),
         bottomNavigationBar: BottomNavigationBar(
           items: const <BottomNavigationBarItem>[
             BottomNavigationBarItem(
@@ -247,7 +294,7 @@ class _MainScreenState extends State<MainScreen> {
     }
 
     return Scaffold(
-      body: _pages[_selectedIndex],
+      body: _pageBuilders[_selectedIndex](),
       bottomNavigationBar: BottomNavigationBar(
         items: const <BottomNavigationBarItem>[
           BottomNavigationBarItem(
