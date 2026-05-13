@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:huinong_web/models/user_model.dart';
 import 'package:huinong_web/pages/register/register_page.dart';
+import 'package:huinong_web/utils/error_handler.dart';
 import 'package:provider/provider.dart';
 import 'package:huinong_web/api/user_api.dart';
 import 'package:huinong_web/provider/app_provider.dart';
@@ -65,9 +66,7 @@ class _LoginPageState extends State<LoginPage> {
         }
       } catch (e) {
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('登录失败: $e')),
-          );
+          ErrorHandler.showCenterError(context, e);
         }
       } finally {
         if (mounted) {

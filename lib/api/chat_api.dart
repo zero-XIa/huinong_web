@@ -22,6 +22,7 @@ class ChatApi {
       final response = await DioClient.instance.post<Map<String, dynamic>>(
         '/chat/message',
         data: formData,
+        options: Options(receiveTimeout: const Duration(seconds: 60)),
         cancelToken: cancelToken,
       );
 
@@ -51,13 +52,14 @@ class ChatApi {
           bytes,
           filename: fileName,
         ),
-        if (text != null && text.isNotEmpty) 'text': text,
+        if (text != null && text.isNotEmpty) 'content': text,
         if (sessionId != null && sessionId.isNotEmpty) 'session_id': sessionId,
       });
 
       final response = await DioClient.instance.post<Map<String, dynamic>>(
         '/chat/message_with_image',
         data: formData,
+        options: Options(receiveTimeout: const Duration(seconds: 60)),
         cancelToken: cancelToken,
         onSendProgress: onSendProgress,
       );

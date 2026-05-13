@@ -2,11 +2,13 @@ import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:huinong_web/api/chat_api.dart';
 import 'package:huinong_web/api/dio_client.dart';
+import 'package:huinong_web/config/app_config.dart';
 import 'package:huinong_web/provider/app_provider.dart';
 
-/// 打字指示器组件 - 显示三个跳动的圆点
+// 打字指示器组件 - 三个跳动的圆点
 class TypingIndicator extends StatefulWidget {
   const TypingIndicator({super.key});
 
@@ -16,6 +18,7 @@ class TypingIndicator extends StatefulWidget {
 
 class _TypingIndicatorState extends State<TypingIndicator>
     with TickerProviderStateMixin {
+  // 跳动圆点动画
   late AnimationController _controller;
   late Animation<double> _dot1Animation;
   late Animation<double> _dot2Animation;
@@ -92,7 +95,7 @@ class _TypingIndicatorState extends State<TypingIndicator>
   }
 }
 
-/// 问诊页面 - 使用 HTTPS POST 请求与后端通信
+// 问诊页面
 class ConsultPage extends StatefulWidget {
   final String? initialText;
 
@@ -128,7 +131,7 @@ class _ConsultPageState extends State<ConsultPage> {
   @override
   void initState() {
     super.initState();
-    DioClient.instance.init('http://127.0.0.1:8000/api/v1');
+    DioClient.instance.init(AppConfig.apiBaseUrl);
     _focusNode.addListener(_onFocusChange);
     
     if (widget.initialText != null && widget.initialText!.isNotEmpty) {
@@ -169,18 +172,21 @@ class _ConsultPageState extends State<ConsultPage> {
   }
 
   void _onFocusChange() {
+    // 输入框获焦时滚动到底部
     if (_focusNode.hasFocus) {
       _scrollToBottom();
     }
   }
 
   void _scrollToBottom() {
+    // 滚动到消息列表底部
     if (_scrollController.hasClients) {
       _scrollController.jumpTo(_scrollController.position.maxScrollExtent);
     }
   }
 
   Future<void> _loadHistoryBySessionId(String sessionId) async {
+    // 加载指定会话的历史消息
     setState(() {
       _isLoadingHistory = true;
     });
@@ -188,12 +194,19 @@ class _ConsultPageState extends State<ConsultPage> {
     try {
       final response = await ChatApi.instance.getMessages(sessionId, skip: 0, limit: 50);
       final List<Map<String, dynamic>> historyMessages = (response['list'] as List)
-          .map((json) => {
-                'role': json['role'] as String,
-                'content': json['content'] as String,
-                'files': [],
-                'isUser': (json['role'] as String) == 'user',
-              })
+          .map((json) {
+            final imageUrl = json['image_url'] as String?;
+            return {
+              'role': json['role'] as String,
+              'content': json['content'] as String,
+              'files': [],
+              'isUser': (json['role'] as String) == 'user',
+              if (imageUrl != null)
+                'imageUrl': imageUrl.startsWith('http')
+                    ? imageUrl
+                    : '${AppConfig.staticBaseUrl}$imageUrl',
+            };
+          })
           .toList();
       
       setState(() {
@@ -218,6 +231,7 @@ class _ConsultPageState extends State<ConsultPage> {
   }
 
   Future<void> _selectImage(ImageSource source) async {
+    // 选择单张图片（相册或相机）
     try {
       final XFile? image = await _imagePicker.pickImage(source: source);
       if (image != null) {
@@ -237,163 +251,103 @@ class _ConsultPageState extends State<ConsultPage> {
     }
   }
 
-  Future<void> _sendTextMessage(String content) async {
-    if (content.isEmpty) return;
+  Future<void> _sendMessage() async {
+    // 发送消息（文字或文字+图片）
+    final text = _controller.text.trim();
 
-    setState(() {
-      _isSending = true;
-    });
+    if (text.isEmpty && _selectedImage == null) return;
+
+    final pickedImage = _selectedImage;
+    setState(() => _isSending = true);
 
     try {
+      Uint8List? imageBytes;
+      if (pickedImage != null) {
+        imageBytes = await pickedImage.readAsBytes();
+      }
+
       setState(() {
         _messages.add({
           'role': 'user',
-          'content': content,
-          'files': [],
-          'isUser': true,
-        });
-        _controller.clear();
-      });
-      
-      _scrollToBottom();
-
-      setState(() {
-        _isAITyping = true;
-      });
-
-      final response = await ChatApi.instance.sendTextMessage(
-        content,
-        sessionId: _currentSessionId,
-      );
-
-      if (mounted) {
-        setState(() {
-          _isAITyping = false;
-          
-          final answer = response['answer'] as String? ?? '收到您的问题，正在处理中...';
-          final sessionId = response['session_id'] as String?;
-          
-          if (sessionId != null && _currentSessionId == null) {
-            _currentSessionId = sessionId;
-          }
-          
-          _messages.add({
-            'role': 'ai',
-            'content': answer,
-            'isUser': false,
-          });
-        });
-        _scrollToBottom();
-      }
-    } catch (e) {
-      if (mounted) {
-        setState(() {
-          _isAITyping = false;
-        });
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('发送失败：$e')),
-        );
-      }
-    } finally {
-      if (mounted) {
-        setState(() {
-          _isSending = false;
-        });
-      }
-    }
-  }
-
-  Future<void> _sendImageMessage(XFile imageFile, {String? text}) async {
-    setState(() {
-      _isSending = true;
-    });
-
-    try {
-      final bytes = await imageFile.readAsBytes();
-      
-      setState(() {
-        _messages.add({
-          'role': 'user',
-          'content': text ?? '',
-          'files': [bytes],
+          'content': text,
+          'files': imageBytes != null ? [imageBytes] : [],
           'isUser': true,
         });
         _controller.clear();
         _selectedImage = null;
         _imageBytes = null;
       });
-      
       _scrollToBottom();
 
-      setState(() {
-        _isAITyping = true;
-      });
+      setState(() => _isAITyping = true);
 
-      final response = await ChatApi.instance.sendImageMessage(
-        imageFile,
-        text: text,
-        sessionId: _currentSessionId,
-      );
-
-      if (mounted) {
-        setState(() {
-          _isAITyping = false;
-          
-          final answer = response['answer'] as String? ?? '收到您的问题，正在处理中...';
-          final sessionId = response['session_id'] as String?;
-          
-          if (sessionId != null && _currentSessionId == null) {
-            _currentSessionId = sessionId;
-          }
-          
-          _messages.add({
-            'role': 'ai',
-            'content': answer,
-            'isUser': false,
-          });
-        });
-        _scrollToBottom();
-      }
-    } catch (e) {
-      if (mounted) {
-        setState(() {
-          _isAITyping = false;
-        });
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('发送失败：$e')),
+      final Map<String, dynamic> response;
+      if (pickedImage != null) {
+        response = await ChatApi.instance.sendImageMessage(
+          pickedImage,
+          text: text,
+          sessionId: _currentSessionId,
+        );
+      } else {
+        response = await ChatApi.instance.sendTextMessage(
+          text,
+          sessionId: _currentSessionId,
         );
       }
-    } finally {
-      if (mounted) {
-        setState(() {
-          _isSending = false;
+
+      if (!mounted) return;
+
+      setState(() {
+        _isAITyping = false;
+        final answer = response['answer'] as String? ?? '收到您的问题，正在处理中...';
+        final sessionId = response['session_id'] as String?;
+        if (sessionId != null && _currentSessionId == null) {
+          _currentSessionId = sessionId;
+        }
+        _messages.add({
+          'role': 'ai',
+          'content': answer,
+          'isUser': false,
         });
-      }
-    }
-  }
-
-  Future<void> _sendMessage() async {
-    final text = _controller.text.trim();
-    
-    if (text.isEmpty && _selectedImage == null) {
-      return;
-    }
-
-    if (_selectedImage != null) {
-      await _sendImageMessage(_selectedImage!, text: text);
-    } else {
-      await _sendTextMessage(text);
+      });
+      _scrollToBottom();
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _isAITyping = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('发送失败：$e')),
+      );
+    } finally {
+      if (mounted) setState(() => _isSending = false);
     }
   }
 
   void _clearImage() {
+    // 清除已选图片
     setState(() {
       _selectedImage = null;
       _imageBytes = null;
     });
   }
 
+  void _newConversation() {
+    // 新建对话 - 历史来源则回到首页，否则清空当前
+    if (_fromHistory) {
+      Navigator.popUntil(context, (route) => route.isFirst);
+      return;
+    }
+    setState(() {
+      _messages.clear();
+      _currentSessionId = null;
+      _isAITyping = false;
+      _controller.clear();
+      _selectedImage = null;
+      _imageBytes = null;
+    });
+  }
+
   Widget _buildMessageBubble(Map<String, dynamic> message) {
+    // 构建单条消息气泡
     final isUser = message['isUser'] as bool;
     final appProvider = Provider.of<AppProvider>(context);
     final isElderMode = appProvider.isElderlyMode;
@@ -425,6 +379,25 @@ class _ConsultPageState extends State<ConsultPage> {
                   ),
               ]
             ],
+            if (message['imageUrl'] != null) ...[
+              ClipRRect(
+                borderRadius: BorderRadius.circular(isElderMode ? 12 : 8),
+                child: CachedNetworkImage(
+                  imageUrl: message['imageUrl'] as String,
+                  width: isElderMode ? 200 : 160,
+                  height: isElderMode ? 200 : 160,
+                  fit: BoxFit.cover,
+                  placeholder: (context, url) => Container(
+                    color: Colors.grey[200],
+                    child: const Center(child: CircularProgressIndicator()),
+                  ),
+                  errorWidget: (context, url, error) => Container(
+                    color: Colors.grey[200],
+                    child: const Icon(Icons.broken_image, color: Colors.grey),
+                  ),
+                ),
+              ),
+            ],
             const SizedBox(height: 8),
             Text(
               message['content'] as String,
@@ -440,6 +413,7 @@ class _ConsultPageState extends State<ConsultPage> {
   }
 
   Widget _buildTypingIndicatorMessage() {
+    // 显示"AI正在输入"指示
     return Align(
       alignment: Alignment.centerLeft,
       child: Container(
@@ -455,6 +429,7 @@ class _ConsultPageState extends State<ConsultPage> {
   }
 
   Widget _buildInputArea() {
+    // 构建底部输入区域（图片预览 + 输入框 + 按钮）
     final appProvider = Provider.of<AppProvider>(context);
     final isElderMode = appProvider.isElderlyMode;
     
@@ -606,18 +581,23 @@ class _ConsultPageState extends State<ConsultPage> {
         ),
         backgroundColor: isElderMode ? elderBackgroundColor : null,
         elevation: 0,
-        actions: _fromHistory
-          ? []
-          : [
-              IconButton(
-                icon: const Icon(Icons.history),
-                onPressed: () {
-                  Navigator.pushNamed(context, '/chat/sessions');
-                },
-                tooltip: '历史会话',
-                iconSize: isElderMode ? 28 : 24,
-              ),
-            ],
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.add_comment),
+            onPressed: _newConversation,
+            tooltip: '新建对话',
+            iconSize: isElderMode ? 28 : 24,
+          ),
+          if (!_fromHistory)
+            IconButton(
+              icon: const Icon(Icons.history),
+              onPressed: () {
+                Navigator.pushNamed(context, '/chat/sessions');
+              },
+              tooltip: '历史会话',
+              iconSize: isElderMode ? 28 : 24,
+            ),
+        ],
       ),
       body: Column(
         children: [

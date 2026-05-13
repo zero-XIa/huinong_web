@@ -1,6 +1,8 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:huinong_web/api/user_api.dart';
+import 'package:huinong_web/utils/error_handler.dart';
+import 'package:huinong_web/widgets/center_toast.dart';
 import 'package:provider/provider.dart';
 import 'package:huinong_web/provider/app_provider.dart';
 
@@ -39,8 +41,8 @@ class _RegisterPageState extends State<RegisterPage> {
       return '请输入密码';
     }
     final trimmed = value.trim();
-    if (trimmed.length < 8 || trimmed.length > 20) {
-      return '请设置 8-20 位密码（建议包含字母+数字）';
+    if (!RegExp(r'^(?=.*[a-zA-Z])(?=.*\d)[a-zA-Z\d]{8,20}$').hasMatch(trimmed)) {
+      return '密码需8-20位，且必须包含字母和数字';
     }
     return null;
   }
@@ -68,56 +70,21 @@ class _RegisterPageState extends State<RegisterPage> {
     final isElderMode = Provider.of<AppProvider>(context, listen: false).isElderlyMode;
 
     try {
-      final user = await UserApi.instance.register(
+      await UserApi.instance.register(
         _usernameController.text,
         _passwordController.text,
         phone: _phoneController.text,
       );
 
       if (mounted) {
-        final username = user.username;
-        showDialog(
-          context: context,
-          builder: (dialogContext) {
-            // 2秒后自动关闭弹窗
-            Future.delayed(const Duration(seconds: 2), () {
-              if (dialogContext.mounted && Navigator.of(dialogContext).canPop()) {
-                Navigator.of(dialogContext).pop();
-              }
-            });
-            return AlertDialog(
-              title: Text('注册成功', style: TextStyle(fontSize: isElderMode ? 22 : 18, fontWeight: FontWeight.bold)),
-              content: RichText(
-                text: TextSpan(
-                  style: TextStyle(
-                    fontSize: isElderMode ? 20 : 16,
-                    color: Colors.black87,
-                    height: 1.5,
-                  ),
-                  children: [
-                    const TextSpan(text: '注册成功！您的账号 '),
-                    TextSpan(
-                      text: username,
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: isElderMode ? 22 : 18,
-                        color: Theme.of(context).primaryColor,
-                      ),
-                    ),
-                    const TextSpan(text: ' 已创建，即将跳转到登录页'),
-                  ],
-                ),
-              ),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.of(dialogContext).pop(),
-                  child: Text('确定', style: TextStyle(fontSize: isElderMode ? 19 : 16)),
-                ),
-              ],
-            );
-          },
-        ).then((_) {
-          // 弹窗关闭后回到登录页，_AppShell 自然显示 LoginPage
+        CenterToast.show(
+          context,
+          '注册成功，即将跳转登录',
+          isError: false,
+          isElderMode: isElderMode,
+          duration: const Duration(seconds: 2),
+        );
+        Future.delayed(const Duration(seconds: 2), () {
           if (mounted) {
             Navigator.of(context).pop();
           }
@@ -125,22 +92,7 @@ class _RegisterPageState extends State<RegisterPage> {
       }
     } catch (e) {
       if (mounted) {
-        showDialog(
-          context: context,
-          builder: (context) => AlertDialog(
-            title: Text('注册失败', style: TextStyle(fontSize: isElderMode ? 22 : 18, fontWeight: FontWeight.bold)),
-            content: Text(e.toString(), style: TextStyle(fontSize: isElderMode ? 20 : 16)),
-            actions: [
-              SizedBox(
-                height: isElderMode ? 50 : 40,
-                child: TextButton(
-                  onPressed: () => Navigator.of(context).pop(),
-                  child: Text('确定', style: TextStyle(fontSize: isElderMode ? 19 : 16)),
-                ),
-              ),
-            ],
-          ),
-        );
+        ErrorHandler.showCenterError(context, e, isElderMode: isElderMode);
       }
     } finally {
       if (mounted) {

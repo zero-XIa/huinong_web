@@ -45,7 +45,7 @@ class IdentifyResultPage extends StatelessWidget {
                 child: ClipRRect(
                   borderRadius: BorderRadius.circular(12),
                   child: CachedNetworkImage(
-                    imageUrl: identification.imageUrl,
+                    imageUrl: identification.fullImageUrl,
                     fit: BoxFit.contain,
                     placeholder: (context, url) => const Center(
                       child: CircularProgressIndicator(),
@@ -171,7 +171,7 @@ class IdentifyResultPage extends StatelessWidget {
                         ),
                       ),
                       child: Text(
-                        '返回首页',
+                        '返回识别',
                         style: TextStyle(fontSize: elderMode ? 19 : 16),
                       ),
                     ),

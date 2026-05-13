@@ -1,5 +1,6 @@
 
 import 'package:intl/intl.dart';
+import '../config/app_config.dart';
 
 /// 识别记录模型 (Identification Model)
 ///
@@ -103,6 +104,13 @@ class Identification {
       'duration': duration,
       'create_time': createTime?.toIso8601String(),
     };
+  }
+
+  String get fullImageUrl {
+    if (imageUrl.startsWith('http://') || imageUrl.startsWith('https://')) {
+      return imageUrl;
+    }
+    return '${AppConfig.staticBaseUrl}$imageUrl';
   }
 
   /// 示例：格式化创建时间

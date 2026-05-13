@@ -186,7 +186,7 @@ class _IdentifyHistoryPageState extends State<IdentifyHistoryPage> {
                 ClipRRect(
                   borderRadius: BorderRadius.circular(8),
                   child: CachedNetworkImage(
-                    imageUrl: item.imageUrl,
+                    imageUrl: item.fullImageUrl,
                     width: elderMode ? 80 : 60,
                     height: elderMode ? 80 : 60,
                     fit: BoxFit.cover,

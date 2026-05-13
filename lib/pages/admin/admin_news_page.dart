@@ -153,6 +153,10 @@ class _AdminNewsPageState extends State<AdminNewsPage> {
                             ErrorHandler.showErrorSnackBar(ctx, '标题不能为空');
                             return;
                           }
+                          if (titleCtrl.text.trim().length > 200) {
+                            ErrorHandler.showErrorSnackBar(ctx, '标题不能超过200个字符');
+                            return;
+                          }
                           if (contentCtrl.text.trim().isEmpty) {
                             ErrorHandler.showErrorSnackBar(ctx, '正文不能为空');
                             return;

@@ -1,5 +1,4 @@
 import 'package:dio/dio.dart';
-import 'package:flutter/foundation.dart'; // For debugPrint
 import 'package:huinong_web/provider/app_provider.dart';
 import 'package:huinong_web/utils/secure_storage.dart';
 
@@ -98,7 +97,6 @@ class DioClient {
     Options? options,
     CancelToken? cancelToken,
   }) async {
-    debugPrint('DioClient.put called: path=$path, data=$data');
     try {
       final response = await _dio.put<T>(
         path,
@@ -107,13 +105,10 @@ class DioClient {
         options: options,
         cancelToken: cancelToken,
       );
-      debugPrint('DioClient.put success: status=${response.statusCode}');
       return response.data;
     } on DioException catch (e) {
-      debugPrint('DioClient.put DioException: ${e.type}, message: ${e.message}');
       throw _handleDioException(e);
     } catch (e) {
-      debugPrint('DioClient.put unknown error: $e');
       rethrow;
     }
   }
@@ -143,8 +138,6 @@ class DioClient {
     String message = '未知错误';
     int? statusCode = error.response?.statusCode;
 
-    debugPrint('Dio 异常: ${error.type}, 状态码: $statusCode, 错误信息: ${error.message}');
-
     switch (error.type) {
       case DioExceptionType.connectionTimeout:
       case DioExceptionType.sendTimeout:
@@ -152,35 +145,35 @@ class DioClient {
         message = '网络连接超时，请检查网络设置。';
         break;
       case DioExceptionType.badResponse:
+        final responseData = error.response?.data;
+        String? serverMessage;
+        int? serverCode;
+        if (responseData is Map<String, dynamic>) {
+          serverMessage = responseData['message'] as String?;
+          serverCode = responseData['code'] as int?;
+        }
+
         switch (statusCode) {
           case 400:
-            // 尝试从响应体中获取更详细的错误信息
-            final responseData = error.response?.data;
-            String detailMessage = '';
-            if (responseData is Map<String, dynamic>) {
-              detailMessage = responseData['detail'] as String? ?? responseData['message'] as String? ?? '';
-            }
-            if (detailMessage.isNotEmpty) {
-              message = detailMessage;
-            } else {
-              message = '请求参数错误，请检查输入信息。';
-            }
+            message = serverMessage ?? '请求参数错误，请检查输入信息。';
             break;
           case 401:
-             message = '未授权，请重新登录。';
-            // TODO: 这里可以添加清除本地 token 并跳转到登录页的逻辑
+            message = serverMessage ?? '未授权，请重新登录。';
             break;
           case 404:
-            message = '请求的资源不存在。';
+            message = serverMessage ?? '请求的资源不存在。';
+            break;
+          case 409:
+            message = serverMessage ?? '操作冲突，请检查输入信息。';
             break;
           case 500:
-            message = '服务器内部错误。';
+            message = serverMessage ?? '服务器内部错误。';
             break;
           default:
-            message = '请求失败，请稍后重试。';
+            message = serverMessage ?? '请求失败，请稍后重试。';
             break;
         }
-        break;
+        return ApiException(message, code: serverCode ?? statusCode);
       case DioExceptionType.cancel:
         message = '请求已取消。';
         break;
@@ -202,35 +195,27 @@ class DioClient {
 class AppInterceptor extends Interceptor {
   @override
   void onRequest(RequestOptions options, RequestInterceptorHandler handler) async {
-    debugPrint('请求拦截器开始 [${options.method}] => PATH: ${options.path}');
     try {
       if (options.path == '/users/login') {
         final loginData = options.data;
         if (loginData is Map<String, dynamic>) {
           final safeData = Map<String, dynamic>.from(loginData);
           safeData['password'] = '******';
-          debugPrint('登录请求体: $safeData');
         }
       }
-      debugPrint('开始获取 token...');
       final token = await SecureStorage.instance.getToken();
-      debugPrint('获取 token 完成: ${token != null ? '有 token' : '无 token'}');
       if (token != null) {
         options.headers['Authorization'] = 'Bearer $token';
-        debugPrint('添加 Authorization header: Bearer ${token.substring(0, 10)}...');
       }
     } catch (e) {
-      debugPrint('请求拦截器异常: $e');
+      // ignore
     } finally {
-      debugPrint('调用 handler.next(options)，请求继续');
       handler.next(options);
     }
   }
 
   @override
   void onResponse(Response response, ResponseInterceptorHandler handler) {
-    debugPrint('响应 [${response.requestOptions.method}] => PATH: ${response.requestOptions.path} STATUS: ${response.statusCode}');
-    
     // 解析响应结构 {code, message, data}
     if (response.statusCode == 200) {
       final data = response.data;
@@ -258,8 +243,6 @@ class AppInterceptor extends Interceptor {
 
   @override
   void onError(DioException err, ErrorInterceptorHandler handler) {
-    debugPrint('错误 [${err.requestOptions.method}] => PATH: ${err.requestOptions.path} ERROR: ${err.message}');
-    
     // 处理 401 错误
     // 仅在用户已登录且不在登出流程中时才触发自动登出，防止递归调用
     if (err.response?.statusCode == 401) {

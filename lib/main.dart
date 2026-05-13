@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:huinong_web/api/dio_client.dart';
+import 'package:huinong_web/config/app_config.dart';
 import 'package:huinong_web/pages/admin/admin_news_page.dart';
 import 'package:huinong_web/pages/chat/sessions_page.dart';
 import 'package:huinong_web/pages/consult/consult_page.dart';
@@ -20,7 +21,7 @@ void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   
   // 初始化 Dio 客户端
-  DioClient.instance.init('http://127.0.0.1:8000/api/v1');
+  DioClient.instance.init(AppConfig.apiBaseUrl);
   
   // 创建 AppProvider 实例
   final appProvider = AppProvider();
@@ -152,6 +153,8 @@ class MyApp extends StatelessWidget {
     // 避免 MaterialApp 重建导致 navigatorKey 的 GlobalKey 冲突。
     return MaterialApp(
       title: '慧农 App',
+      // 移除 DEBUG 标签
+      debugShowCheckedModeBanner: false,
       navigatorKey: navigatorKey,
       routes: {
         '/identify/result': (context) => const IdentifyResultPage(),
@@ -210,9 +213,11 @@ class _AppShell extends StatelessWidget {
 
     // 长辈模式通过 Theme 包装注入，不重建 MaterialApp
     // 使用 ValueKey 确保主题切换时直接替换 widget，避免 AnimatedTheme 插值
+    // 管理员页面不受长辈模式影响，始终使用默认主题
+    final effectiveElderMode = isElder && !isAdmin;
     return Theme(
-      key: ValueKey('theme_$isElder'),
-      data: MyApp._buildTheme(isElder),
+      key: ValueKey('theme_$effectiveElderMode'),
+      data: MyApp._buildTheme(effectiveElderMode),
       child: page,
     );
   }
