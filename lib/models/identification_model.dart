@@ -2,86 +2,59 @@
 import 'package:intl/intl.dart';
 import '../config/app_config.dart';
 
-/// 识别记录模型 (Identification Model)
+/// 识别记录模型
 ///
-/// 此模型与 FastAPI 后端 `crop.py` 中定义的 `Identification` 数据结构完全对齐。
-/// 主要用于存储用户的作物识别记录，包括识别出的病害、建议等信息。
-///
-/// **如何与 Dio 响应解析联动：**
-/// 当使用 Dio 发送请求并收到响应后，可以通过以下方式将 JSON 数据转换为 Identification 对象列表：
-/// ```dart
-/// final response = await DioClient.instance.get('/identifications');
-/// if (response.statusCode == 200) {
-///   final List<Identification> identifications = (response.data as List)
-///       .map((e) => Identification.fromJson(e as Map<String, dynamic>))
-///       .toList();
-///   // 现在你可以使用 identifications 列表了
-/// }
-/// ```
+/// 对应后端 FastAPI /crops/identify 接口返回的 data 字段
+/// 字段名使用 snake_case 与后端对齐
+
 class Identification {
   /// 识别记录ID
-  /// 对应后端字段: `id` (Integer, primary_key)
   final int? id;
 
   /// 用户ID
-  /// 对应后端字段: `user_id` (Integer, ForeignKey)
   final int? userId;
 
-  /// 作物ID
-  /// 对应后端字段: `crop_id` (Integer, ForeignKey)
-  final int? cropId;
-
-  /// 图像URL
-  /// 对应后端字段: `image_url` (String, nullable=False)
+  /// 图片路径（后端存储的相对路径或完整 URL）
   final String imageUrl;
 
-  /// 作物名称
-  /// 对应后端字段: `crop_name` (String, nullable=True)
+  /// 作物名称（AI 识别结果，可能为"未知作物"）
   final String? cropName;
 
-  /// 病害名称
-  /// 对应后端字段: `disease_name` (String, nullable=True)
+  /// 病害名称（AI 识别结果，可能为"未知病害"）
   final String? diseaseName;
 
-  /// 防治建议
-  /// 对应后端字段: `advice` (Text, nullable=True)
-  final String? advice;
+  /// 病害特征描述（Dify 工作流返回的详细特征说明）
+  final String? characteristics;
 
-  /// 识别置信度
-  /// 对应后端字段: `confidence` (Float, nullable=True)
+  /// 识别置信度（0.0 ~ 1.0 的小数）
   final double? confidence;
 
-  /// 持续时间 (如果适用)
-  /// 对应后端字段: `duration` (Integer, nullable=True)
+  /// 持续时间
   final int? duration;
 
   /// 创建时间
-  /// 对应后端字段: `create_time` (DateTime, server_default=func.now())
   final DateTime? createTime;
 
   Identification({
     this.id,
     this.userId,
-    this.cropId,
     required this.imageUrl,
     this.cropName,
     this.diseaseName,
-    this.advice,
+    this.characteristics,
     this.confidence,
     this.duration,
     this.createTime,
   });
 
-  /// 从 JSON 数据创建 Identification 对象的工厂构造函数。
   factory Identification.fromJson(Map<String, dynamic> json) {
     return Identification(
       id: json['id'] as int?,
       userId: json['user_id'] as int?,
-      cropId: json['crop_id'] as int?,
       imageUrl: json['image_url'] as String,
       cropName: json['crop_name'] as String?,
       diseaseName: json['disease_name'] as String?,
-      advice: json['advice'] as String?,
+      characteristics: json['characteristics'] as String?,
       confidence: (json['confidence'] as num?)?.toDouble(),
       duration: json['duration'] as int?,
       createTime: json['create_time'] != null
@@ -90,22 +63,21 @@ class Identification {
     );
   }
 
-  /// 将 Identification 对象转换为 JSON 格式的方法。
   Map<String, dynamic> toJson() {
     return {
       'id': id,
       'user_id': userId,
-      'crop_id': cropId,
       'image_url': imageUrl,
       'crop_name': cropName,
       'disease_name': diseaseName,
-      'advice': advice,
+      'characteristics': characteristics,
       'confidence': confidence,
       'duration': duration,
       'create_time': createTime?.toIso8601String(),
     };
   }
 
+  /// 拼接完整图片 URL（相对路径自动补全静态资源域名）
   String get fullImageUrl {
     if (imageUrl.startsWith('http://') || imageUrl.startsWith('https://')) {
       return imageUrl;
@@ -113,8 +85,7 @@ class Identification {
     return '${AppConfig.staticBaseUrl}$imageUrl';
   }
 
-  /// 示例：格式化创建时间
-  /// 这是一个“特殊处理”方法，用于将 createTime 格式化为可读的字符串。
+  /// 格式化创建时间为 yyyy-MM-dd 用于列表展示
   String get formattedCreateTime {
     if (createTime == null) {
       return '未知时间';
@@ -124,6 +95,6 @@ class Identification {
 
   @override
   String toString() {
-    return 'Identification(id: $id, userId: $userId, cropId: $cropId, diseaseName: $diseaseName, createTime: $createTime)';
+    return 'Identification(id: $id, userId: $userId, diseaseName: $diseaseName, createTime: $createTime)';
   }
 }

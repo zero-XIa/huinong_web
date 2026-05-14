@@ -4,14 +4,17 @@ import 'package:image_picker/image_picker.dart';
 import 'package:huinong_web/api/dio_client.dart';
 import 'package:huinong_web/models/identification_model.dart';
 
+/// 病害识别相关接口
 class IdentifyApi {
   IdentifyApi._();
   static final IdentifyApi _instance = IdentifyApi._();
   static IdentifyApi get instance => _instance;
 
+  /// 上传图片进行病害识别
+  ///
+  /// 图片先存本地再上传 Dify 识别工作流，后端同步处理后返回结果
   Future<Identification> identify(
     XFile imageFile, {
-    String? cropName,
     CancelToken? cancelToken,
     ProgressCallback? onSendProgress,
   }) async {
@@ -24,7 +27,6 @@ class IdentifyApi {
           bytes,
           filename: fileName,
         ),
-        if (cropName != null && cropName.isNotEmpty) 'crop_name': cropName,
       });
 
       final response = await DioClient.instance.post<Map<String, dynamic>>(
@@ -48,6 +50,7 @@ class IdentifyApi {
     }
   }
 
+  /// 获取识别历史列表（分页）
   Future<Map<String, dynamic>> getHistory({
     int skip = 0,
     int limit = 10,
@@ -69,6 +72,7 @@ class IdentifyApi {
     }
   }
 
+  /// 获取单条识别记录详情
   Future<Identification> getHistoryDetail(
     int id, {
     CancelToken? cancelToken,
@@ -88,6 +92,7 @@ class IdentifyApi {
     }
   }
 
+  /// 删除单条识别记录
   Future<void> deleteHistory(int id) async {
     try {
       await DioClient.instance.delete<void>(

@@ -7,6 +7,9 @@ import 'package:huinong_web/models/identification_model.dart';
 import 'package:huinong_web/utils/error_handler.dart';
 import 'package:huinong_web/widgets/loading_indicator.dart';
 
+/// 病害识别主页面
+///
+/// 用户在此拍照或选择图片，点击"开始识别"后上传到后端 Dify 工作流
 class IdentifyPage extends StatefulWidget {
   const IdentifyPage({super.key});
 
@@ -18,6 +21,7 @@ class _IdentifyPageState extends State<IdentifyPage> {
   XFile? _selectedImage;
   bool _isIdentifying = false;
 
+  /// 拍照或从相册选择图片
   Future<void> _pickImage(ImageSource source) async {
     final picker = ImagePicker();
     final pickedFile = await picker.pickImage(source: source);
@@ -31,13 +35,14 @@ class _IdentifyPageState extends State<IdentifyPage> {
     }
   }
 
+  /// 校验图片格式（jpg/png）和大小（≤10MB）
   Future<bool> _validateImage(XFile file) async {
     if (!mounted) return false;
-    
+
     final allowedExtensions = ['jpg', 'jpeg', 'png'];
     final fileName = file.name.toLowerCase();
     final extension = fileName.split('.').last;
-    
+
     if (!allowedExtensions.contains(extension)) {
       ErrorHandler.showErrorSnackBar(context, '请选择 jpg 或 png 格式的图片');
       return false;
@@ -45,7 +50,7 @@ class _IdentifyPageState extends State<IdentifyPage> {
 
     final fileSize = await file.length();
     if (!mounted) return false;
-    
+
     const maxSize = 10 * 1024 * 1024;
     if (fileSize > maxSize) {
       ErrorHandler.showErrorSnackBar(context, '图片大小不能超过 10MB');
@@ -55,11 +60,12 @@ class _IdentifyPageState extends State<IdentifyPage> {
     return true;
   }
 
+  /// 上传图片到后端进行病害识别，成功后跳转结果页
   Future<void> _startIdentify() async {
     if (_selectedImage == null) return;
 
     setState(() {
-      _isIdentifying = true;
+      _isIdentifying = true; // 防止重复点击
     });
 
     LoadingIndicator.show(context);
@@ -99,6 +105,7 @@ class _IdentifyPageState extends State<IdentifyPage> {
           style: theme.textTheme.titleLarge,
         ),
         actions: [
+          // AppBar 右侧的历史记录入口
           IconButton(
             icon: const Icon(Icons.history),
             tooltip: '识别历史',
@@ -113,6 +120,7 @@ class _IdentifyPageState extends State<IdentifyPage> {
           padding: const EdgeInsets.all(16),
           child: Column(
             children: [
+              // 图片预览区域（选中前显示占位图标）
               Container(
                 width: double.infinity,
                 height: 300,
@@ -152,6 +160,7 @@ class _IdentifyPageState extends State<IdentifyPage> {
                       ),
               ),
               const SizedBox(height: 24),
+              // 拍照 / 从相册选择按钮
               Row(
                 children: [
                   Expanded(
@@ -169,6 +178,7 @@ class _IdentifyPageState extends State<IdentifyPage> {
                   ),
                 ],
               ),
+              // 选中图片后才显示"开始识别"按钮
               if (_selectedImage != null)
                 Padding(
                   padding: const EdgeInsets.only(top: 24),
@@ -190,6 +200,7 @@ class _IdentifyPageState extends State<IdentifyPage> {
   }
 }
 
+/// 结果页路由参数，携带识别完成的 Identification 对象
 class IdentificationResultArguments {
   final Identification identification;
 

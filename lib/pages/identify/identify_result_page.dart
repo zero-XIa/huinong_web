@@ -15,10 +15,12 @@ class IdentifyResultPage extends StatelessWidget {
     final elderMode = appProvider.isElderlyMode;
     final theme = Theme.of(context);
 
+    // 把 0~1 的置信度转为百分比字符串
     final confidencePercent = identification.confidence != null
         ? (identification.confidence! * 100).toStringAsFixed(1)
         : '0';
 
+    // 拼接"作物名 病害名"用于标题展示
     final diseaseFullName = [identification.cropName, identification.diseaseName]
         .where((e) => e != null && e.isNotEmpty)
         .join(' ');
@@ -35,6 +37,7 @@ class IdentifyResultPage extends StatelessWidget {
           padding: const EdgeInsets.all(16),
           child: Column(
             children: [
+              // 图片预览区域
               Container(
                 width: double.infinity,
                 height: 250,
@@ -57,6 +60,7 @@ class IdentifyResultPage extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: 24),
+              // 识别结果信息卡片
               Container(
                 width: double.infinity,
                 padding: const EdgeInsets.all(16),
@@ -67,6 +71,7 @@ class IdentifyResultPage extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
+                    // 病害名称标题
                     Text(
                       diseaseFullName.isNotEmpty ? diseaseFullName : '未识别到病害',
                       style: TextStyle(
@@ -76,6 +81,7 @@ class IdentifyResultPage extends StatelessWidget {
                       ),
                     ),
                     const SizedBox(height: 20),
+                    // 置信度进度条
                     Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
@@ -102,11 +108,12 @@ class IdentifyResultPage extends StatelessWidget {
                       ],
                     ),
                     const SizedBox(height: 24),
+                    // 病害特征描述（Dify 工作流返回的详细说明）
                     Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          '防治建议',
+                          '病害特征',
                           style: TextStyle(fontSize: elderMode ? 18 : 14, fontWeight: FontWeight.w500),
                         ),
                         const SizedBox(height: 12),
@@ -117,7 +124,7 @@ class IdentifyResultPage extends StatelessWidget {
                             borderRadius: BorderRadius.circular(8),
                           ),
                           child: Text(
-                            identification.advice ?? '暂无防治建议',
+                            identification.characteristics ?? '暂无详细信息',
                             style: TextStyle(
                               fontSize: elderMode ? 18 : 14,
                               height: 1.6,
@@ -131,11 +138,13 @@ class IdentifyResultPage extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: 32),
+              // 底部操作按钮
               Row(
                 children: [
                   Expanded(
                     child: ElevatedButton(
                       onPressed: () {
+                        // 从结果页跳转问诊，附带识别出的病害名称作为初始提问
                         final initialText = diseaseFullName.isNotEmpty
                             ? '我想了解关于$diseaseFullName的更多信息'
                             : null;
@@ -186,6 +195,7 @@ class IdentifyResultPage extends StatelessWidget {
   }
 }
 
+/// 问诊页面路由参数，携带初始提问文本
 class ChatPageArguments {
   final String? initialText;
 
